@@ -4,10 +4,11 @@
 Name: Testbed_1
 breif: Event Based Transient MC for metaprograming exploration
 Author: Jackson Morgan (OR State Univ - morgjack@oregonstate.edu) CEMeNT
-Date: Nov 10th 2021
+Date: Dec 2nd 2021
 current implemented physics:
         -slab geometry
-        -multiregion (only one generating)
+        -multiregion
+        -surface tracking
         -monoenergtic
         -isotropic or uniform source direction
         -fission/capture/scatter region
@@ -22,14 +23,15 @@ from kernals.Advance import *
 from kernals.SampleEvent import *
 from kernals.FissionsAdd import *
 from kernals.CleanUp import *
+from kernals.Scatter import *
 
 
 #===============================================================================
 # Simulation Setup
 #===============================================================================
 
-[seed, num_part, particle_speed, nu_new_neutrons, isotropic, cap_xsec, scat_xsec, 
- fis_xsec, total_xsec, L, generation_region, regions] = SimulationSetup()
+[seed, num_part, particle_speed, nu_new_neutrons, isotropic, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec,
+ mesh_total_xsec, L, N_mesh, dx] = SimulationSetup()
 
 #===============================================================================
 # Allocate particle phase space
@@ -54,12 +56,13 @@ p_speed = np.zeros(phase_parts, dtype=np.float32)
 p_time = np.zeros(phase_parts, dtype=np.float32)
 
 # Region
-p_region = np.zeros(phase_parts, dtype=np.uint8)
+p_mesh_cell = np.zeros(phase_parts, dtype=int)
 
 # Flags
 p_alive = np.full(phase_parts, False)
 p_event = np.zeros(phase_parts, dtype=np.uint8)
 
+#mesh_particle_index = np.zeros([N_mesh, phase_parts], dtype=np.uint8)
 
 
 scatter_event_index = np.zeros(phase_parts, dtype=np.uint8)
@@ -77,7 +80,7 @@ p_event: vector of ints to flag what event happened last to this particle
 """
 
 
-seed, num_part, particle_speed, nu_new_neutrons, isotropic, cap_xsec, scat_xsec, fis_xsec, total_xsec, L, generation_region, regions = SimulationSetup()
+#seed, num_part, particle_speed, nu_new_neutrons, isotropic, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, mesh_total_xsec, L, generation_region, regions = SimulationSetup()
 
 #===============================================================================
 # Initial setups
@@ -87,21 +90,26 @@ seed, num_part, particle_speed, nu_new_neutrons, isotropic, cap_xsec, scat_xsec,
 np.random.seed(seed)
 
 init_particle = num_part
-norm_scat = scat_xsec/total_xsec
-norm_cap = cap_xsec/total_xsec
-norm_fis = fis_xsec/total_xsec
+meshwise_fission_pdf = np.zeros(phase_parts, dtype=np.float32)
+total_mesh_fission_xsec = sum(mesh_fis_xsec)
+for cell in range(N_mesh):
+    meshwise_fission_pdf[cell] = mesh_fis_xsec[cell]/total_mesh_fission_xsec
+    
+    mesh_cap_xsec[cell] = mesh_cap_xsec[cell] / mesh_total_xsec[cell]
+    mesh_scat_xsec[cell] = mesh_scat_xsec[cell] / mesh_total_xsec[cell]
+    mesh_fis_xsec[cell] = mesh_fis_xsec[cell] / mesh_total_xsec[cell]
+
+meshwise_fission_pdf /= sum(meshwise_fission_pdf)
+
 
 #===============================================================================
 # EVENT 0 : Sample particle sources
 #===============================================================================
 
-L_gen = L[generation_region+1]-L[generation_region]
-x_rhs_gen = L[generation_region]
 
-p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive = SourceParticles(
-        p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
-        num_part, x_rhs_gen, L_gen, generation_region, particle_speed, isotropic=True)
-
+p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive = SourceParticles(
+        p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
+        num_part, meshwise_fission_pdf, particle_speed, isotropic=True)
 
 #===============================================================================
 # Generation Loop
@@ -122,39 +130,47 @@ while alive > 0:
     #===============================================================================
     killed = 0
     
-    [p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time] = Advance(
-            p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, total_xsec)
-
-    #===============================================================================
-    # EVENT 2 : Still in problem/ update region
-    #===============================================================================
     
-    p_alive, p_event, p_region = UpdateRegion(p_pos_x, p_region, p_alive, p_event, num_part, regions, L)
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time] = Advance(
+            p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
+            num_part, mesh_total_xsec)
+    
+    #===============================================================================
+    # EVENT 2 : Still in problem
+    #===============================================================================
                 
+    [p_alive, tally_left_t, tally_right_t] = StillIn(p_mesh_cell, p_alive, num_part, N_mesh)
     
-
+    trans_lhs += tally_left_t
+    trans_rhs += tally_right_t
+    
     #===============================================================================
     # EVENT 3 : Sample event
     #===============================================================================
     
-    [scatter_event_index, capture_event_index, fission_event_index, fis_count] = SampleEvent(
-            p_region, p_event, p_alive, norm_scat, norm_cap, norm_fis, scatter_event_index,
+    [scatter_event_index, scat_count, capture_event_index, cap_count, fission_event_index, fis_count] = SampleEvent(
+            p_mesh_cell, p_event, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, scatter_event_index,
             capture_event_index, fission_event_index, num_part, nu_new_neutrons)
     
     fissions_to_add = fis_count-1*nu_new_neutrons
-
-
+    
+    killed += cap_count+fis_count
+    #===============================================================================
+    # EVENT 3 : Scatter
+    #===============================================================================
+    
+    [p_dir_x, p_dir_y, p_dir_z] = Scatter(scatter_event_index, scat_count, p_dir_x, p_dir_y, p_dir_z)
+    
+    
     #===============================================================================
     # EVENT 4: Generate fission particles
     #===============================================================================
-    
-    [p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, 
-     p_time, p_alive, num_part] = FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_region, 
+
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
+     p_time, p_alive, num_part] = FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                               p_dir_y, p_dir_z, p_dir_x, p_speed, 
                                               p_time, p_alive, fis_count, nu_new_neutrons, 
                                               fission_event_index, num_part, particle_speed)
-    
     
     #===============================================================================
     # Criticality & Output (not really an event)
@@ -173,29 +189,30 @@ while alive > 0:
     #===============================================================================
     # EVENT 10 : Tally score
     #===============================================================================
-    flag_a = 0
-    flag_b = 0
+    # flag_a = 0
+    # flag_b = 0
     
-    for i in range(num_part):
-        if p_alive[i] == False:
-            if p_event[i] == 5:
-                trans_rhs += 1
-                flag_a = 1
-            elif p_event[i] == 6:
-                trans_lhs += 1
-                flag_b = 1
+    # for i in range(num_part):
+    #     if p_alive[i] == False:
+    #         if p_event[i] == 5:
+    #             trans_rhs += 1
+    #             flag_a = 1
+    #         elif p_event[i] == 6:
+    #             trans_lhs += 1
+    #             flag_b = 1
         
-    
     #===============================================================================
     # Event 5: Purge the dead
     #===============================================================================
-    [p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, 
-     p_time, p_alive, kept] = BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_region, 
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
+     p_time, p_alive, kept] = BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                                p_dir_y, p_dir_z, p_dir_x, p_speed, 
                                                p_time, p_alive, p_event, num_part)
-    
+                                           
     num_part = kept
     alive = num_part
+    
+    # print(max(p_mesh_cell[0:num_part]))
     
     #===============================================================================
     # Step Output
@@ -204,7 +221,7 @@ while alive > 0:
     # print("population start: {0}".format(alive_last))
     # print("population end: {0}".format(alive_now))
     print("particles produced from fission: {0}".format(fissions_to_add))
-    print("particles killed: {0}".format(killed))
+    print("particles captured/fissioned: {0}".format(killed))
     print("total particles now stored: {0}".format(num_part))
     # alive_last = alive_now
     g+=1

@@ -4,13 +4,13 @@
 Name: CleanUp
 breif: Misc functions for MCDC-TNT
 Author: Jackson Morgan (OR State Univ - morgjack@oregonstate.edu) CEMeNT
-Date: Nov 18th 2021
+Date: Dec 2nd 2021
 """
 
 import numpy as np
 
-def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
-        num_part, x_rhs_gen, L_gen, generation_region, particle_speed, isotropic=True):
+def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
+        num_part, meshwise_fission_pdf, particle_speed, isotropic=True):
     """
     Parameters
     ----------
@@ -49,8 +49,20 @@ def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir
     
     for i in range(num_part):
         # Position
-        p_pos_x[i] = x_rhs_gen + L_gen*np.random.random()
-        p_region[i] = generation_region
+        
+        #find mesh cell birth based on provided pdf
+        xi = np.random.random()
+        cell = 0
+        summer = 0
+        while (summer < xi):
+            summer += meshwise_fission_pdf[cell]
+            cell += 1
+                
+        cell -=1
+        p_mesh_cell[i] = cell
+        
+        #sample birth location within cell
+        p_pos_x[i] = dx*cell + dx*np.random.random()
         p_pos_y[i] = 0.0
         p_pos_z[i] = 0.0
     
@@ -78,6 +90,6 @@ def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir
         
         p_alive[i] = True
         
-    return(p_pos_x, p_pos_y, p_pos_z, p_region, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive)
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive)
 
 
