@@ -31,41 +31,24 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                 RB = p_mesh_cell[i]+1 * dx
                 LB = p_mesh_cell[i]   * dx
                 
-                if (x_loc < LB):      #move partilce into cell at left
+                if (x_loc < LB):        #move partilce into cell at left
                     dist_traveled = (LB - p_pos_x[i])/p_dir_x[i] + kicker
-                    
-                    p_pos_x[i] += p_dir_x[i]*dist_traveled
-                    p_pos_y[i] += p_dir_y[i]*dist_traveled
-                    p_pos_z[i] += p_dir_z[i]*dist_traveled
-                    
-                    mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
-                    p_mesh_cell[i] = int(p_pos_x[i]/dx)
                    
-                
                 elif (x_loc > RB):      #move particle into cell at right
                     dist_traveled = (RB - p_pos_x[i])/p_dir_x[i] + kicker
                     
-                    p_pos_x[i] += p_dir_x[i]*dist_traveled
-                    p_pos_y[i] += p_dir_y[i]*dist_traveled
-                    p_pos_z[i] += p_dir_z[i]*dist_traveled
-                    
-                    mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
-                    p_mesh_cell[i] = int(p_pos_x[i]/dx)
-                    
-                else:   # Move particle in cell
+                else:                   #move particle in cell
                     dist_traveled = dist
-                    p_pos_x[i] += x_loc
-                    p_pos_y[i] += p_dir_y[i]*dist_traveled
-                    p_pos_z[i] += p_dir_z[i]*dist_traveled
-                    
-                    mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
                     flag = 0
-        
-        
-        p_mesh_cell[i] = int(p_pos_x[i]/dx)
-            
-        #advance particle clock
-        p_time[i]  += dist/p_speed[i]
+                    
+                p_pos_x[i] += p_dir_x[i]*dist_traveled
+                p_pos_y[i] += p_dir_y[i]*dist_traveled
+                p_pos_z[i] += p_dir_z[i]*dist_traveled
+                mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
+                p_mesh_cell[i] = int(p_pos_x[i]/dx)
+                
+                #advance particle clock
+                p_time[i]  += dist_traveled/p_speed[i]
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled)
 
