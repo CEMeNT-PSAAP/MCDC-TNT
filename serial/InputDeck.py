@@ -16,7 +16,7 @@ def SimulationSetup():
     #===============================================================================
     
     seed = 777
-    num_part = 10000 #number of particles to start
+    num_part = 100000 #number of particles to start
     particle_speed = 1 #particle speed
     
     # generations = 1
@@ -25,7 +25,9 @@ def SimulationSetup():
     
     # Test case 1
     Lenght_slab = 1
-    mesh_cell_length = 1 #dx
+    surface_distances = np.array([0,Lenght_slab], dtype=np.float32)
+    
+    mesh_cell_length = 0.1 #dx
     N_mesh = int(Lenght_slab/mesh_cell_length)
     
     cap_xsec = 1/3 #capture crossection
@@ -60,4 +62,4 @@ def SimulationSetup():
     # generation_region = 1
     # regions = 3
     
-    return(seed, num_part, particle_speed, nu_new_neutrons, isotropic, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, mesh_total_xsec, Lenght_slab, N_mesh, mesh_cell_length)
+    return(seed, num_part, particle_speed, nu_new_neutrons, isotropic, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, mesh_total_xsec, Lenght_slab, N_mesh, mesh_cell_length, surface_distances)

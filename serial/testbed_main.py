@@ -30,14 +30,13 @@ from kernals.Scatter import *
 # Simulation Setup
 #===============================================================================
 
-[seed, num_part, particle_speed, nu_new_neutrons, isotropic, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec,
- mesh_total_xsec, L, N_mesh, dx] = SimulationSetup()
+[seed, num_part, particle_speed, nu_new_neutrons, isotropic, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, mesh_total_xsec, L, N_mesh, dx, surface_distances] = SimulationSetup()
 
 #===============================================================================
 # Allocate particle phase space
 #===============================================================================
 
-phase_parts = 5*num_part #see note about data storage
+phase_parts = 2*num_part #see note about data storage
 
 # Position
 p_pos_x = np.zeros(phase_parts, dtype=np.float32)
@@ -62,6 +61,8 @@ p_mesh_cell = np.zeros(phase_parts, dtype=int)
 p_alive = np.full(phase_parts, False)
 p_event = np.zeros(phase_parts, dtype=np.uint8)
 
+
+p_region = np.zeros(phase_parts, dtype=int)
 #mesh_particle_index = np.zeros([N_mesh, phase_parts], dtype=np.uint8)
 
 
@@ -90,7 +91,8 @@ p_event: vector of ints to flag what event happened last to this particle
 np.random.seed(seed)
 
 init_particle = num_part
-meshwise_fission_pdf = np.zeros(phase_parts, dtype=np.float32)
+meshwise_fission_pdf = np.zeros(N_mesh, dtype=np.float32)
+
 total_mesh_fission_xsec = sum(mesh_fis_xsec)
 for cell in range(N_mesh):
     meshwise_fission_pdf[cell] = mesh_fis_xsec[cell]/total_mesh_fission_xsec
@@ -100,16 +102,13 @@ for cell in range(N_mesh):
     mesh_fis_xsec[cell] = mesh_fis_xsec[cell] / mesh_total_xsec[cell]
 
 meshwise_fission_pdf /= sum(meshwise_fission_pdf)
-
+mesh_dist_traveled = np.zeros(N_mesh, dtype=np.float32)
 
 #===============================================================================
 # EVENT 0 : Sample particle sources
 #===============================================================================
 
-
-p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive = SourceParticles(
-        p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
-        num_part, meshwise_fission_pdf, particle_speed, isotropic=True)
+p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive = SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, meshwise_fission_pdf, particle_speed, isotropic=True)
 
 #===============================================================================
 # Generation Loop
@@ -124,25 +123,29 @@ while alive > 0:
     print("===============================================================================")
     print("                             Event Cycle {0}".format(g))
     print("===============================================================================")
+    print("particles alive at start of event cycle {0}".format(num_part))
+    
     
     #===============================================================================
     # EVENT 1 : Advance
     #===============================================================================
     killed = 0
+    alive_cycle_start = num_part
     
     
-    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time] = Advance(
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled] = Advance(
             p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, mesh_total_xsec)
+            num_part, mesh_total_xsec, mesh_dist_traveled, 1)
     
     #===============================================================================
     # EVENT 2 : Still in problem
     #===============================================================================
                 
-    [p_alive, tally_left_t, tally_right_t] = StillIn(p_mesh_cell, p_alive, num_part, N_mesh)
+    [p_alive, tally_left_t, tally_right_t] = StillIn(p_pos_x, surface_distances, p_alive, num_part)
     
     trans_lhs += tally_left_t
     trans_rhs += tally_right_t
+    
     
     #===============================================================================
     # EVENT 3 : Sample event
@@ -152,7 +155,7 @@ while alive > 0:
             p_mesh_cell, p_event, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, scatter_event_index,
             capture_event_index, fission_event_index, num_part, nu_new_neutrons)
     
-    fissions_to_add = fis_count-1*nu_new_neutrons
+    fissions_to_add = (fis_count)*nu_new_neutrons
     
     killed += cap_count+fis_count
     #===============================================================================
@@ -165,13 +168,15 @@ while alive > 0:
     #===============================================================================
     # EVENT 4: Generate fission particles
     #===============================================================================
-
+    
     [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
-     p_time, p_alive, num_part] = FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
+     p_time, p_alive, particles_added_fission] = FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                               p_dir_y, p_dir_z, p_dir_x, p_speed, 
                                               p_time, p_alive, fis_count, nu_new_neutrons, 
                                               fission_event_index, num_part, particle_speed)
-    
+                                              
+    num_part += particles_added_fission
+                                              
     #===============================================================================
     # Criticality & Output (not really an event)
     #===============================================================================
@@ -185,32 +190,20 @@ while alive > 0:
     #         alive_now +=1
     # print("k = {0} (pop now/pop last)".format(alive_now/alive_last))
     
-    
-    #===============================================================================
-    # EVENT 10 : Tally score
-    #===============================================================================
-    # flag_a = 0
-    # flag_b = 0
-    
-    # for i in range(num_part):
-    #     if p_alive[i] == False:
-    #         if p_event[i] == 5:
-    #             trans_rhs += 1
-    #             flag_a = 1
-    #         elif p_event[i] == 6:
-    #             trans_lhs += 1
-    #             flag_b = 1
         
     #===============================================================================
     # Event 5: Purge the dead
     #===============================================================================
+    
     [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
      p_time, p_alive, kept] = BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                                p_dir_y, p_dir_z, p_dir_x, p_speed, 
                                                p_time, p_alive, p_event, num_part)
-                                           
+                                               
     num_part = kept
     alive = num_part
+                         
+    print("")
     
     # print(max(p_mesh_cell[0:num_part]))
     
@@ -218,11 +211,19 @@ while alive > 0:
     # Step Output
     #===============================================================================
     
-    # print("population start: {0}".format(alive_last))
-    # print("population end: {0}".format(alive_now))
-    print("particles produced from fission: {0}".format(fissions_to_add))
-    print("particles captured/fissioned: {0}".format(killed))
-    print("total particles now stored: {0}".format(num_part))
+    # the sum of all debits from functional operations should be the number of
+    #currently alive particles
+    account = alive_cycle_start + particles_added_fission - fis_count - cap_count - tally_left_t - tally_right_t
+    if account != num_part:
+        print("ERROR PARTICLES HAVE BEEN UNACCOUNTED FOR")
+    
+    print("{0} particles are produced from {1} fission events".format(fissions_to_add, fis_count))
+    print("particles captured:  {0}".format(cap_count))
+    print("particles scattered: {0}".format(scat_count))
+    print("particles leaving left:    {0}".format(tally_left_t))
+    print("particles leaving right:   {0}".format(tally_right_t))
+    print("total particles now alive and stored: {0}".format(num_part))
+    
     # alive_last = alive_now
     g+=1
 

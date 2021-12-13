@@ -11,47 +11,76 @@ import math
 import numpy as np
 
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, mesh_total_xsec):
+            num_part, mesh_total_xsec, mesh_dist_traveled, L):
+    kicker = 0.001
     for i in range(num_part):
-        # Sample distance to collision
-        dist = -math.log(np.random.random()) / mesh_total_xsec[p_mesh_cell[i]]
-        dist_x = p_dir_x[i] * dist
+        #print("particle {0} is now in transport".format(i))
         
+        
+        flag = 1
+        while (flag == 1):
+            if (p_pos_x[i] < 0): #exited rhs
+                flag = 0            
+            elif (p_pos_x[i] > L): #exited lhs
+                flag = 0
+                
+            else:
+                dist = -math.log(np.random.random()) / mesh_total_xsec[p_mesh_cell[i]]
+                
+                x_loc = (p_dir_x[i] * dist) + p_pos_x[i]
+                RB = p_mesh_cell[i]+1 * dx
+                LB = p_mesh_cell[i]   * dx
+                
+                if (x_loc < LB):      #move partilce into cell at left
+                    dist_traveled = (LB - p_pos_x[i])/p_dir_x[i] + kicker
+                    
+                    p_pos_x[i] += p_dir_x[i]*dist_traveled
+                    p_pos_y[i] += p_dir_y[i]*dist_traveled
+                    p_pos_z[i] += p_dir_z[i]*dist_traveled
+                    
+                    mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
+                    p_mesh_cell[i] = int(p_pos_x[i]/dx)
+                   
+                
+                elif (x_loc > RB):      #move particle into cell at right
+                    dist_traveled = (RB - p_pos_x[i])/p_dir_x[i] + kicker
+                    
+                    p_pos_x[i] += p_dir_x[i]*dist_traveled
+                    p_pos_y[i] += p_dir_y[i]*dist_traveled
+                    p_pos_z[i] += p_dir_z[i]*dist_traveled
+                    
+                    mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
+                    p_mesh_cell[i] = int(p_pos_x[i]/dx)
+                    
+                else:   # Move particle in cell
+                    dist_traveled = dist
+                    p_pos_x[i] += x_loc
+                    p_pos_y[i] += p_dir_y[i]*dist_traveled
+                    p_pos_z[i] += p_dir_z[i]*dist_traveled
+                    
+                    mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
+                    flag = 0
+        
+        
+        p_mesh_cell[i] = int(p_pos_x[i]/dx)
             
-        #move particle into cell at right
-        if (dist_x > dx*p_mesh_cell[i+1]):
-            p_mesh_cell[i] += 1
-            p_pos_x[i] = dx*np.random.random()
-            
-        #move partilce into cell at left
-        elif (dist_x < dx*p_mesh_cell[i]):
-            p_mesh_cell[i] -= 1
-            p_pos_x[i] = dx*np.random.random()
-        
-        # Move particle in cell
-        else:
-            p_pos_x[i] += dist_x
-            p_pos_y[i] += p_dir_y[i]*dist
-            p_pos_z[i] += p_dir_z[i]*dist
-        
         #advance particle clock
         p_time[i]  += dist/p_speed[i]
     
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time)
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled)
 
 
 
-def StillIn(p_mesh_cell, p_alive, num_part, N_cell):
+def StillIn(p_pos_x, surface_distances, p_alive, num_part):
+    tally_left = 0
+    tally_right = 0
     for i in range(num_part):
-        tally_left = 0
-        tally_right = 0
-        
         #exit at left
-        if p_mesh_cell[i] < 0:
+        if p_pos_x[i] < surface_distances[0]:
             tally_left += 1
             p_alive[i] = False
             
-        elif p_mesh_cell[i] > (N_cell - 1):
+        elif p_pos_x[i] > surface_distances[len(surface_distances)-1]:
             tally_right += 1
             p_alive[i] = False
             

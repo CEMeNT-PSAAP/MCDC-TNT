@@ -30,7 +30,6 @@ def SampleEvent(p_mesh_cell, p_event, p_alive, mesh_cap_xsec, mesh_scat_xsec, me
             #capture?
             elif mesh_scat_xsec[p_mesh_cell[i]] < event_rand < mesh_scat_xsec[p_mesh_cell[i]]+mesh_cap_xsec[p_mesh_cell[i]]:
                 p_event[i] = 2
-                
                 p_alive[i] = False
                 killed += 1
                 capture_event_index[cap_count] = i
