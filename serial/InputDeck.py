@@ -16,14 +16,17 @@ def SimulationSetup():
     #===============================================================================
     
     seed = 777
-    num_part = 1000 #number of particles to start
+    num_part = 10000 #number of particles to start
     particle_speed = 1 #particle speed
     
     # generations = 1
     nu_new_neutrons = 2 #neutrons/fission
-    isotropic = True #is it isotropic 1=yes 0=no
+    isotropic = True #isotropic
     
-    # Test case 1
+    #===============================================================================
+    # Test case 1: Single Reigon
+    #===============================================================================
+    
     # Lenght_slab = 1
     # surface_distances = np.array([0,Lenght_slab], dtype=np.float32)
     
@@ -38,9 +41,24 @@ def SimulationSetup():
     # total_xsec = 1 #total crossection
     
     
-    # Test case 2
+    # #establishing mesh
+    # mesh_scat_xsec = np.zeros(N_mesh, dtype=np.float32)
+    # mesh_cap_xsec = np.zeros(N_mesh, dtype=np.float32)
+    # mesh_fis_xsec = np.zeros(N_mesh, dtype=np.float32)
+    # mesh_total_xsec = np.zeros(N_mesh, dtype=np.float32)
+
+    # for cell in range(N_mesh):
+    #     mesh_scat_xsec[cell] = scat_xsec
+    #     mesh_cap_xsec[cell] = cap_xsec
+    #     mesh_fis_xsec[cell] = fis_xsec
+    #     mesh_total_xsec[cell] = total_xsec
     
-    # Test case 2
+    
+    
+    #===============================================================================
+    # Test case 2: Three Region
+    #===============================================================================
+    
     # index refers to region
     cap_xsec = np.array([1/3, 1/3, 1/3]) #capture crossection
     scat_xsec = np.array([2/3, 1/3, 2/3]) #scattering crossection
@@ -51,7 +69,7 @@ def SimulationSetup():
     
     Lenght_slab = 3
     surface_distances = np.array([0,1,2,Lenght_slab], dtype=np.float32)
-    mesh_cell_length = 0.1 #dx
+    mesh_cell_length = 0.01 #dx
     N_mesh = int(Lenght_slab/mesh_cell_length)
     
     #establishing mesh

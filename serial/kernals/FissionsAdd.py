@@ -20,6 +20,9 @@ def FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_
             p_pos_y[k+num_part] = p_pos_y[fission_event_index[i]]
             p_pos_z[k+num_part] = p_pos_x[fission_event_index[i]]
             
+            # print("fission particle produced")
+            # print("from particle {0} and indexed as particle {1}".format(fission_event_index[i], k+num_part))
+            # print("produced at: {0}".format(p_pos_x[k+num_part]))
             # Direction
             # Sample polar and azimuthal angles uniformly
             mu  = 2.0*np.random.random() - 1.0

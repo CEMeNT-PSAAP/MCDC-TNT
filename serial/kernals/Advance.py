@@ -25,6 +25,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                 flag = 0
                 
             else:
+                front = 1
                 dist = -math.log(np.random.random()) / mesh_total_xsec[p_mesh_cell[i]]
                 
                 x_loc = (p_dir_x[i] * dist) + p_pos_x[i]
@@ -33,6 +34,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                 
                 if (x_loc < LB):        #move partilce into cell at left
                     dist_traveled = (LB - p_pos_x[i])/p_dir_x[i] + kicker
+                    front =-1
                    
                 elif (x_loc > RB):      #move particle into cell at right
                     dist_traveled = (RB - p_pos_x[i])/p_dir_x[i] + kicker
@@ -44,7 +46,9 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                 p_pos_x[i] += p_dir_x[i]*dist_traveled
                 p_pos_y[i] += p_dir_y[i]*dist_traveled
                 p_pos_z[i] += p_dir_z[i]*dist_traveled
-                mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
+                
+                mesh_dist_traveled[p_mesh_cell[i]] += front * dist_traveled
+                
                 p_mesh_cell[i] = int(p_pos_x[i]/dx)
                 
                 #advance particle clock

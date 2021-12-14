@@ -17,6 +17,7 @@ current implemented physics:
 # import sys
 # sys.path.append('/home/jack/Documents/testbed/serial/kernals/')
 import numpy as np
+import matplotlib.pyplot as plt
 from InputDeck import SimulationSetup
 from kernals.SourceParticles import *
 from kernals.Advance import *
@@ -36,7 +37,7 @@ from kernals.Scatter import *
 # Allocate particle phase space
 #===============================================================================
 
-phase_parts = 2*num_part #see note about data storage
+phase_parts = 5*num_part #see note about data storage
 
 # Position
 p_pos_x = np.zeros(phase_parts, dtype=np.float32)
@@ -108,7 +109,7 @@ mesh_dist_traveled = np.zeros(N_mesh, dtype=np.float32)
 # EVENT 0 : Sample particle sources
 #===============================================================================
 
-p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive = SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, meshwise_fission_pdf, particle_speed, isotropic=True)
+p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive = SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, meshwise_fission_pdf, particle_speed, isotropic)
 
 #===============================================================================
 # Generation Loop
@@ -118,14 +119,14 @@ g = 0
 alive = num_part
 trans_lhs = 0
 trans_rhs = 0
-while alive > 0:
+while g < 20:
     print("")
     print("===============================================================================")
     print("                             Event Cycle {0}".format(g))
     print("===============================================================================")
     print("particles alive at start of event cycle {0}".format(num_part))
     
-    
+    # print("max index {0}".format(num_part))
     #===============================================================================
     # EVENT 1 : Advance
     #===============================================================================
@@ -135,7 +136,7 @@ while alive > 0:
     
     [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled] = Advance(
             p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, mesh_total_xsec, mesh_dist_traveled, 1)
+            num_part, mesh_total_xsec, mesh_dist_traveled, surface_distances[len(surface_distances)-1])
     
     #===============================================================================
     # EVENT 2 : Still in problem
@@ -158,6 +159,8 @@ while alive > 0:
     fissions_to_add = (fis_count)*nu_new_neutrons
     
     killed += cap_count+fis_count
+    
+    
     #===============================================================================
     # EVENT 3 : Scatter
     #===============================================================================
@@ -168,14 +171,19 @@ while alive > 0:
     #===============================================================================
     # EVENT 4: Generate fission particles
     #===============================================================================
+    # print("")
+    # print("max index {0}".format(num_part))
+    # print("")
     
     [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
      p_time, p_alive, particles_added_fission] = FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                               p_dir_y, p_dir_z, p_dir_x, p_speed, 
                                               p_time, p_alive, fis_count, nu_new_neutrons, 
                                               fission_event_index, num_part, particle_speed)
-                                              
+
     num_part += particles_added_fission
+    # print("")
+    # print("max index {0}".format(num_part))
                                               
     #===============================================================================
     # Criticality & Output (not really an event)
@@ -202,8 +210,9 @@ while alive > 0:
                                                
     num_part = kept
     alive = num_part
-                         
-    print("")
+                      
+    # print("max index {0}".format(num_part))
+    # print("")
     
     # print(max(p_mesh_cell[0:num_part]))
     
@@ -226,6 +235,17 @@ while alive > 0:
     
     # alive_last = alive_now
     g+=1
+
+#===============================================================================
+# Plotting (over mesh)
+#===============================================================================
+# x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
+# plt.figure(1)
+# plt.plot(x_mesh, mesh_dist_traveled, '-b')
+# plt.title("Distnace Traveled in Mesh Cells")
+# plt.xlabel("[cm]")
+# plt.ylabel("[cm]")
+
 
 
 print("")
