@@ -9,6 +9,7 @@ current implemented physics:
         -slab geometry
         -multiregion
         -surface tracking
+        -track length estimator
         -monoenergtic
         -isotropic or uniform source direction
         -fission/capture/scatter region
@@ -104,6 +105,7 @@ for cell in range(N_mesh):
 
 meshwise_fission_pdf /= sum(meshwise_fission_pdf)
 mesh_dist_traveled = np.zeros(N_mesh, dtype=np.float32)
+mesh_dist_traveled_squared = np.zeros(N_mesh, dtype=np.float32)
 
 #===============================================================================
 # EVENT 0 : Sample particle sources
@@ -119,7 +121,7 @@ g = 0
 alive = num_part
 trans_lhs = 0
 trans_rhs = 0
-while g < 20:
+while alive > 0:
     print("")
     print("===============================================================================")
     print("                             Event Cycle {0}".format(g))
@@ -134,9 +136,9 @@ while g < 20:
     alive_cycle_start = num_part
     
     
-    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled] = Advance(
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = Advance(
             p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, mesh_total_xsec, mesh_dist_traveled, surface_distances[len(surface_distances)-1])
+            num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1])
     
     #===============================================================================
     # EVENT 2 : Still in problem
@@ -237,14 +239,26 @@ while g < 20:
     g+=1
 
 #===============================================================================
+# Statistics
+#===============================================================================
+
+mesh_dist_traveled /= init_particle
+mesh_dist_traveled_squared /= init_particle
+standard_deviation_flux = ((mesh_dist_traveled_squared - mesh_dist_traveled**2)/(init_particle-1))
+standard_deviation_flux = np.sqrt(standard_deviation_flux/(init_particle))
+
+#===============================================================================
 # Plotting (over mesh)
 #===============================================================================
-# x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
-# plt.figure(1)
-# plt.plot(x_mesh, mesh_dist_traveled, '-b')
-# plt.title("Distnace Traveled in Mesh Cells")
-# plt.xlabel("[cm]")
-# plt.ylabel("[cm]")
+
+x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
+mesh_dist_traveled /= dx
+
+plt.figure(1)
+plt.plot(x_mesh, mesh_dist_traveled, '-b')
+plt.title("Distance Traveled in Mesh Cells")
+plt.xlabel("[cm]")
+plt.ylabel("[cm]")
 
 
 
