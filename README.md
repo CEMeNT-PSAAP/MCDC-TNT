@@ -7,10 +7,10 @@ MCDC - **Toy Neutronics Testbed**: A series of codes to investigate the viabilit
 
 
 This code will have the following physics implemented:
-1. multigroup
+1. monoenergetic
 2. multiregion (slab geometry)
 3. particles produced from fissions
-4. egienvalue itterations
+4. surface tracking and track length estimators
 5. trainsent modeling
 
 
