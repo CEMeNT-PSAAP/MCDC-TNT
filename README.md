@@ -18,4 +18,7 @@ The neutronic physics we target are:
 5. trainsent modeling
 For more information about the impolemented neutron transport throy see the rundown in the docs folder.
 
+## Current Status
+Pure python implementaion working to run a test case use the command `python run.py -i tc_1.yaml`. Work is ongoing to implement above methods on this serial code.
+
 *For thoes about to rock, we salute you*
