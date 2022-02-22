@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Name: CleanUp
 breif: Misc functions for MCDC-TNT
