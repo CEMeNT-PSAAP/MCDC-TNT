@@ -1,0 +1,26 @@
+
+
+name: 'Test Case 1: single region slab'
+number of particles: 1e5
+rng seed: 777
+particle speed: 1
+neutrons per fission: 2
+isotropic: Ture
+
+#===============================================================================
+# Test case 1: Single Reigon
+#===============================================================================
+
+length of slab: 1
+surface locations: [0,1]
+
+dx: 0.01
+
+capture cross section: 0.333
+scatter cross section: 0.333
+fission cross section: 0.333
+
+hardware target: pp
+
+assemble mesh: True
+

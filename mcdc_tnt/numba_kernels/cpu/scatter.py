@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Name: Scatter
 breif: Adding fission particles to phase vectors for MCDC-TNT
@@ -9,13 +7,13 @@ Date: Dec 2nd 2021
 
 import numpy as np
 
-def Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z):
+def Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands):
 
     for i in range(scat_count):
 
             # Sample polar and azimuthal angles uniformly
-            mu  = 2.0*np.random.random() - 1.0
-            azi = 2.0*np.pi*np.random.random()
+            mu  = 2.0*rands[i] - 1.0
+            azi = 2.0*np.pi*rands[i+1]
     	
             # Convert to Cartesian coordinate
             c = (1.0 - mu**2)**0.5

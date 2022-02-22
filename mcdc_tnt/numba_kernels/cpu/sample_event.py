@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Name: SampleEvent
 breif: Samples events for particles provided in a phase space for MCDC-TNT
@@ -9,16 +7,30 @@ Date: Dec 2nd 2021
 import numpy as np
 
 
-def SampleEvent(p_mesh_cell, p_event, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, scatter_event_index, capture_event_index, fission_event_index, num_part, nu_new_neutrons):
+def SampleEvent(p_mesh_cell, p_event, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, scatter_event_index, capture_event_index, fission_event_index, num_part, nu_new_neutrons, rands):
     fissions_to_add = 0
     scat_count = 0
     cap_count = 0
     fis_count = 0
     killed = 0
     
+    #pdf_bounds = np.array([0,
+    #                       mesh_scat_xsec[p_mesh_cell[i]],
+    #                       mesh_scat_xsec[p_mesh_cell[i]]+mesh_cap_xsec[p_mesh_cell[i]],
+    #                       mesh_scat_xsec[p_mesh_cell[i]] + mesh_cap_xsec[p_mesh_cell[i]] + mesh_fis_xsec[p_mesh_cell[i]],
+    #                       1])
+    
     for i in range(num_part):
         if p_alive[i] == True:
-            event_rand = np.random.random()
+            
+            
+            event_rand = rands[i]
+            
+            pdf_bounds = np.array([0,
+                           mesh_scat_xsec[p_mesh_cell[i]],
+                           mesh_scat_xsec[p_mesh_cell[i]]+mesh_cap_xsec[p_mesh_cell[i]],
+                           mesh_scat_xsec[p_mesh_cell[i]] + mesh_cap_xsec[p_mesh_cell[i]] + mesh_fis_xsec[p_mesh_cell[i]],
+                           1])
             
             #scatter?
             if event_rand < mesh_scat_xsec[p_mesh_cell[i]]:
@@ -46,7 +58,9 @@ def SampleEvent(p_mesh_cell, p_event, p_alive, mesh_cap_xsec, mesh_scat_xsec, me
                 
             else:
                 print("error: event for particle {part} not sorted properly".format(part =i))
-                print("random number used: {rand}".foramt(event_rand))
+                print("random number used: {rand}".format(rand = event_rand))
+                print(pdf_bounds)
+                
                 exit()
                 
     return(scatter_event_index, scat_count, capture_event_index, cap_count, fission_event_index, fis_count)
