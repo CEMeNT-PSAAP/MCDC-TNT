@@ -5,99 +5,122 @@ Author: Jackson Morgan (OR State Univ - morgjack@oregonstate.edu) CEMeNT
 Date: Dec 2nd 2021
 """
 
-from math import log
+import math
 import numpy as np
 import numba as nb
 
-
-@nb.jit(nopython=True,) 
+@nb.jit(nopython=True)
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
     
-    end_trans = 0
-    #mesh_dist_traveled, mesh_dist_traveled_squared
-    end_trans_vec = np.zeros(num_part, np.int32)
+    p_end_trans = np.zeros(num_part)
+    end_flag = 0
+    max_mesh_index = len(mesh_total_xsec)-1
     
-    while end_trans == 0:
-        pre_p_mesh_cell = p_mesh_cell
+    cycle_count = 0
+    while end_flag == 0:
+        #allocate randoms
+        rands = np.random.rand(num_part)
+        #vector of indicies for particle transport
         
+        p_dist_travled = np.zeros(num_part)
         
-        pre_end_trans_vec = end_trans_vec
+        pre_p_mesh = p_mesh_cell
         
-        [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_dist, end_trans_vec] = AdvanceParticleRun(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx,
-                                    p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-                                    mesh_total_xsec, end_trans_vec, L, num_part)
+        Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
+                          p_dir_y, p_dir_z, p_dir_x, 
+                          p_mesh_cell, p_speed, p_time,  
+                          dx, mesh_total_xsec, L,
+                          p_dist_travled, p_end_trans, rands, num_part)
         
+        end_flag = 1
         for i in range(num_part):
-            if (pre_end_trans_vec[i] == 0):
-                mesh_dist_traveled[pre_p_mesh_cell[i]] += p_dist[i]
-                mesh_dist_traveled_squared[pre_p_mesh_cell[i]] += p_dist[i]**2
+            if (0 < pre_p_mesh[i] < max_mesh_index):
+                mesh_dist_traveled[pre_p_mesh[i]] += p_dist_travled[i]
+                mesh_dist_traveled_squared[pre_p_mesh[i]] += p_dist_travled[i]**2
                 
-        if np.sum(end_trans_vec) == 0:
-            end_trans = 1
+            if p_end_trans[i] == 0:
+                end_flag = 0
+        
+        #if (cycle_count > int(1e6)):
+        #    print("************ERROR**********")
+        #    print(" Max itter hit")
+        #    print(p_end_trans)
+        #    print()
+        #    print()
+        #    return()
+            
+        summer = p_end_trans.sum()
+        cycle_count += 1
+        #print("Advance Complete:......{1}%       ".format(cycle_count, int(100*summer/num_part)), end = "\r")
+    #print()
     
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
 
 @nb.jit(nopython=True, parallel=True) 
-def AdvanceParticleRun(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx,
-                                    p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-                                    mesh_total_xsec, end_trans_vec, L, num_part):
-    p_dist = np.zeros(num_part)
+def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
+                          p_dir_y, p_dir_z, p_dir_x, 
+                          p_mesh_cell, p_speed, p_time,  
+                          dx, mesh_total_xsec, L,
+                          p_dist_travled, p_end_trans, rands, num_part):
+                          
     for i in nb.prange(num_part):
-            [p_pos_x[i], p_pos_y[i], p_pos_z[i], p_mesh_cell[i], p_time[i],
-            p_dist[i], end_trans_vec[i]] = AdvanceParticle(p_pos_x[i], p_pos_y[i], p_pos_z[i], p_mesh_cell[i], dx,
-                                    p_dir_y[i], p_dir_z[i], p_dir_x[i], p_speed[i], p_time[i],
-                                    mesh_total_xsec, end_trans_vec[i], L)
-                                    
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_dist, end_trans_vec)
+        #print(type(i))
+        [p_pos_x[i], p_pos_y[i], p_pos_z[i], p_mesh_cell[i], p_time[i], p_dist_travled[i], p_end_trans[i]] = Advance_cycle(
+                      p_pos_x[i], p_pos_y[i], p_pos_z[i],
+                      p_dir_y[i], p_dir_z[i], p_dir_x[i], 
+                      p_mesh_cell[i], p_speed[i], p_time[i],  
+                      dx, mesh_total_xsec, L,
+                      p_dist_travled[i], p_end_trans[i], rands[i])
+
 
 
 @nb.jit(nopython=True) 
-def AdvanceParticle(x, y, z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-                    mesh_total_xsec, end_trans, L):
-    
+def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
+                  p_dir_y, p_dir_z, p_dir_x, 
+                  p_mesh_cell, p_speed, p_time,  
+                  dx, mesh_total_xsec, L,
+                  p_dist_travled, p_end_trans, rands):
+
     kicker = 1e-10
-    flag = 1
-    dist_acum = 0
-    if (end_trans == False):
-        if (x < 0): #exited rhs
-            end_trans = True
-        elif (x >= L): #exited lhs
-            flag = True
-        else:
-            dist = -log(np.random.random()) / mesh_total_xsec[p_mesh_cell]
+
+    if (p_end_trans == 0):
+        if (p_pos_x < 0): #exited rhs
+            p_end_trans = 1
+        elif (p_pos_x >= L): #exited lhs
+            p_end_trans = 1
             
-            x_loc = (p_dir_x * dist) + x
+        else:
+            dist = -math.log(rands) / mesh_total_xsec[p_mesh_cell]
+            
+            x_loc = (p_dir_x * dist) + p_pos_x
             LB = p_mesh_cell * dx
             RB = LB + dx
-            #print(type(x_loc))
-            #print(type(LB))
+            
             if (x_loc < LB):        #move partilce into cell at left
-                dist_traveled = (LB - x)/p_dir_x + kicker
-                cell_next = p_mesh_cell -1
+                p_dist_travled = (LB - p_pos_x)/p_dir_x + kicker
+                cell_next = p_mesh_cell - 1
+               
             elif (x_loc > RB):      #move particle into cell at right
-                dist_traveled = (RB - x)/p_dir_x + kicker
-                cell_next = p_mesh_cell +1
+                p_dist_travled = (RB - p_pos_x)/p_dir_x + kicker
+                cell_next = p_mesh_cell + 1
+                
             else:                   #move particle in cell
-                dist_traveled = dist
-                flag = True
+                p_dist_travled = dist
+                p_end_trans = 1
                 cell_next = p_mesh_cell
                 
-            x += p_dir_x*dist_traveled
-            y += p_dir_y*dist_traveled
-            z += p_dir_z*dist_traveled
-            
-            dist_acum += dist
-            #mesh_dist_traveled[p_mesh_cell] += dist_traveled
-            #mesh_dist_traveled_squared[p_mesh_cell] += dist_traveled**2
+            p_pos_x += p_dir_x*p_dist_travled
+            p_pos_y += p_dir_y*p_dist_travled
+            p_pos_z += p_dir_z*p_dist_travled
             
             p_mesh_cell = cell_next
-            
-            #advance particle clock
-            p_time  += dist_traveled/p_speed
+            p_time  += p_dist_travled/p_speed
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_dist_travled, p_end_trans)
 
-    return(x, y, z, p_mesh_cell, p_time, dist_acum, end_trans)
+
+
 
 
 def StillIn(p_pos_x, surface_distances, p_alive, num_part):
@@ -114,32 +137,68 @@ def StillIn(p_pos_x, surface_distances, p_alive, num_part):
             p_alive[i] = False
             
     return(p_alive, tally_left, tally_right)
+
+
+
+
+def test_Advance():
+    L = 1
+    dx = .25
+    N_m = 4
     
-if __name__ == "__main__":
-    n = int(1e8)
-    n_m = int(50)
-    L = 2
-    dx = L/n_m
+    num_part = 6
+    p_pos_x = np.array([-.01, 0, .1544, .2257, .75, 1.1])
+    p_pos_y = 2.1*np.ones(num_part)
+    p_pos_z = 3.4*np.ones(num_part)
     
-    p_pos_x = np.random.random(n)
-    p_pos_y = np.random.random(n)  
-    p_pos_z = np.random.random(n)  
+    p_mesh_cell = np.array([-1, 0, 0, 1, 3, 4])
     
-    p_dir_x = np.random.random(n)  
-    p_dir_y = np.random.random(n)
-    p_dir_z = np.random.random(n)
+    p_dir_x = np.ones(num_part)
+    p_dir_x[0] = -1
+    p_dir_y = np.zeros(num_part)
+    p_dir_z = np.zeros(num_part)
     
-    p_mesh_cell = np.random.randint(n_m, size=n)
-    p_speed = np.ones(n, dtype=float)
-    p_time = np.zeros(n, dtype=float)
+    p_speed = np.ones(num_part)
+    p_time = np.zeros(num_part)
+    p_alive = np.ones(num_part, bool)
+    p_alive[5] = False
     
-    mesh_total_xsec = 1.0
-    mesh_dist_traveled = np.zeros(n_m, dtype=float)
-    mesh_dist_traveled_squared = np.zeros(n_m, dtype=float)
     
-    Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            n, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L)
+    particle_speed = 1
+    mesh_total_xsec = np.array([0.1,1,.1,100])
     
-    print(mesh_dist_traveled)
-    print(mesh_dist_traveled_squared)
+    mesh_dist_traveled_squared = np.zeros(N_m)
+    mesh_dist_traveled = np.zeros(N_m)
+    
+    
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L)
+    
+    
+    assert (np.sum(mesh_dist_traveled) > 0)
+    assert (np.sum(mesh_dist_traveled_squared) > 0)
+    assert (p_pos_x[0]  == -.01)
+    assert (p_pos_x[5]  == 1.1)
+    assert (p_pos_x[1:4].all()  > .75)
+    
+    
+        
+def test_StillIn():    
+    
+    num_part = 7
+    surface_distances = [0,.25,.75,1]
+    p_pos_x = np.array([-.01, 0, .1544, .2257, .75, 1.1, 1])
+    p_alive = np.ones(num_part, bool)
+    
+    [p_alive, tally_left, tally_right] = StillIn(p_pos_x, surface_distances, p_alive, num_part)
+    
+    assert(p_alive[0] == False)
+    assert(p_alive[5] == False)
+    assert(tally_left == 2)
+    assert(tally_right == 2)
+    assert(p_alive[2:4].all() == True)
+
+
+if __name__ == '__main__':
+    test_Advance()
+    test_StillIn()
     
