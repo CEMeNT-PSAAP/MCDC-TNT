@@ -8,7 +8,7 @@ Date: Dec 2nd 2021
 import numpy as np
 
 def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
-        num_part, meshwise_fission_pdf, particle_speed, isotropic=True):
+        num_parts, meshwise_fission_pdf, particle_speed, isotropic=True):
     """
     Parameters
     ----------
@@ -45,7 +45,7 @@ def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z
     All pahse space perameters.
     """
     
-    for i in range(num_part):
+    for i in range(num_parts):
         # Position
         
         #find mesh cell birth based on provided pdf
@@ -91,4 +91,39 @@ def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z
         
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive)
 
+
+
+
+def test_SourceParticles():
+    num_parts = 5
+    p_pos_x = np.zeros(num_parts)
+    p_pos_y = np.zeros(num_parts)
+    p_pos_z = np.zeros(num_parts)
+    
+    p_mesh_cell = np.zeros(num_parts)
+    
+    p_dir_x = np.zeros(num_parts)
+    p_dir_y = np.zeros(num_parts)
+    p_dir_z = np.zeros(num_parts)
+    
+    p_speed = np.zeros(num_parts)
+    p_time = np.ones(num_parts)
+    p_alive = np.zeros(num_parts)
+    
+    particle_speed = 1
+    meshwise_fission_pdf = [0,1]
+    
+    iso=False
+    
+    dx = 0.2
+    
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive] = SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_parts, meshwise_fission_pdf, particle_speed, iso)
+    
+    assert (np.sum(p_time) == 0)
+    assert (p_mesh_cell.all() == 1)
+    assert (p_alive.all() == True)
+    assert (p_pos_x.all() > .2)
+    
+if __name__ == '__main__':
+    test_SourceParticles()    
 
