@@ -4,100 +4,106 @@ breif: Misc functions for MCDC-TNT
 Author: Jackson Morgan (OR State Univ - morgjack@oregonstate.edu) CEMeNT
 Date: Dec 2nd 2021
 """
+import pykokkos as pk
+import numpy as np
 
-
-
-def BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part):
-    """
-    Removes particles that died in the last round of particle transport by
-    rewriting there postiion with the alive ones
-    
-    Parameters
-    ----------
-    p_pos_x : vector double
-        PSV: x position of phase space particles (index is particle value).
-    p_pos_y : vector double
-        PSV: y position of phase space particles (index is particle value).
-    p_pos_z : vector double
-        PSV: z position of phase space particles (index is particle value).
-    p_mesh_cell : vector int
-        PSV: mesh cell location of a given particle.
-    p_dir_y : vector double
-        PSV: y direction unit value of phase space particles (index is particle value).
-    p_dir_z : vector double
-         PSV: z direction unit value of phase space particles (index is particle value).
-    p_dir_x : vector double
-         PSV: x direction unit value of phase space particles (index is particle value).
-    p_speed : vector double
-        PSV: speed (energy) or a particle (index is particle).
-    p_time : vector double
-        PSV: particle clock.
-    p_alive : vector bool
-        PSV: is it alive?
-    num_part : int
-        number of particles currently under transport (indxed form 1).
-
-
-
-    Returns
-    -------
-    PSV ready for next itteration of lifer cycle
-
-    """
-    kept = 0
-    for i in range(num_part):
-        if p_alive[i] == True:
-        #     if p_mesh_cell[i] > 9:
-        #         print("index from this round:")
-        #         print(i)
-        #         print("index for next round:")
-        #         print(kept)
-            
-            p_pos_x[kept] = p_pos_x[i]
-            p_pos_y[kept] = p_pos_y[i]
-            p_pos_z[kept] = p_pos_z[i]
-            
-            # Direction
-            p_dir_x[kept] = p_dir_x[i]
-            p_dir_y[kept] = p_dir_y[i]
-            p_dir_z[kept] = p_dir_z[i]
-            
-            # Speed
-            p_speed[kept] = p_speed[i]
-            
-            # Time
-            p_time[kept] = p_time[i]
-            
-            # Regions
-            p_mesh_cell[kept] = p_mesh_cell[i]
-            
-            # Flags
-            p_alive[kept] = p_alive[i] 
-            kept +=1
-            
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, kept)
+@pk.workload
+class BringOutYourDead:
+    def __init__ (self,p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, clever_out):
+        self.p_pos_x: pk.View1D[pk.double] = p_pos_x
+        self.p_pos_y: pk.View1D[pk.double] = p_pos_y
+        self.p_pos_z: pk.View1D[pk.double] = p_pos_z
+        
+        self.p_dir_x: pk.View1D[pk.double] = p_dir_x
+        self.p_dir_y: pk.View1D[pk.double] = p_dir_y
+        self.p_dir_z: pk.View1D[pk.double] = p_dir_z
+        
+        self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
+        self.p_speed: pk.View1D[pk.double] = p_speed
+        self.p_time: pk.View1D[pk.double] = p_time
+        self.p_alive: pk.View1D[int] = p_alive
+        
+        self.num_part: int = num_part
+        
+        self.kept: int = 0
+        
+        self.clever_out: pk.View1D[int] = clever_out
+        
+    @pk.main
+    def BOYD(self):
+        for i in range(num_part):
+            if p_alive[i] == 1:
+                
+                self.p_pos_x[self.kept] = self.p_pos_x[i]
+                self.p_pos_y[self.kept] = self.p_pos_y[i]
+                self.p_pos_z[self.kept] = self.p_pos_z[i]
+                
+                # Direction
+                self.p_dir_x[self.kept] = self.p_dir_x[i]
+                self.p_dir_y[self.kept] = self.p_dir_y[i]
+                self.p_dir_z[self.kept] = self.p_dir_z[i]
+                
+                # Speed
+                self.p_speed[self.kept] = self.p_speed[i]
+                
+                # Time
+                self.p_time[self.kept] = self.p_time[i]
+                
+                # Regions
+                self.p_mesh_cell[self.kept] = self.p_mesh_cell[i]
+                
+                # Flags
+                self.p_alive[self.kept] = self.p_alive[i] 
+                self.kept +=1
+        self.clever_out[0] = kept
+                
+    #@pk.callback
+    #def ReturnKept(self):
+    #    self.clever_out = self.kept
     
     
 def test_BOYD():
     
     num_part = 3
     
-    p_pos_x = [1,2,3]
-    p_pos_y = [1,2,3]
-    p_pos_z = [1,2,3]
+    p_pos_x_np = np.array([1,2,3], dtype=float)
+    p_pos_y_np = np.array([1,2,3], dtype=float)
+    p_pos_z_np = np.array([1,2,3], dtype=float)
     
-    p_mesh_cell = [1,2,3]
+    p_mesh_cell_np = np.array([1,2,3], dtype=np.int32)
     
-    p_dir_x = [1,2,3]
-    p_dir_y = [1,2,3]
-    p_dir_z = [1,2,3]
+    p_dir_x_np = np.array([1,2,3], dtype=float)
+    p_dir_y_np = np.array([1,2,3], dtype=float)
+    p_dir_z_np = np.array([1,2,3], dtype=float)
     
-    p_speed = [1,2,3]
-    p_time = [1,2,3]
-    p_alive = [False,True,False]
+    p_speed_np = np.array([1,2,3], dtype=float)
+    p_time_np = np.array([1,2,3], dtype=float)
+    p_alive_np = np.array([0,1,0], dtype=np.int32)
     
+    p_pos_x = pk.from_numpy(p_pos_x_np)
+    p_pos_y = pk.from_numpy(p_pos_y_np)
+    p_pos_z = pk.from_numpy(p_pos_z_np)
     
-    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, kept] = BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part)
+    p_dir_x = pk.from_numpy(p_dir_x_np)
+    p_dir_y = pk.from_numpy(p_dir_y_np)
+    p_dir_z = pk.from_numpy(p_dir_z_np)
+    
+    p_mesh_cell = pk.from_numpy(p_mesh_cell_np)
+    p_speed = pk.from_numpy(p_speed_np)
+    p_time = pk.from_numpy(p_time_np)
+    p_alive = pk.from_numpy(p_alive_np)
+    
+    clever_out_np = np.array([0], dtype=np.int32)
+    clever_out = pk.from_numpy(clever_out_np)
+    
+    pk.execute(pk.ExecutionSpace.OpenMP,
+        BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, clever_out))
+    
+    kept = clever_out[0]
+    
+    print(kept)
+    
+    print(p_pos_x)
     
     assert(kept == 1)
     assert(p_dir_x[0] == 2)

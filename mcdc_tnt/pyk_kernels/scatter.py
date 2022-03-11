@@ -7,57 +7,61 @@ Date: Dec 2nd 2021
 
 import math
 import numpy as np
+import pykokkos as pk
 
-def Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands):
-    """
-    Isotropically chosses new particle directions after a scatter event
-
-    Parameters
-    ----------
-    scatter_indices : vector int
-        Indicies to PSV of particls that will be undergoing transport.
-    scat_count : int
-        number of particles to scatter.
-    p_dir_y : vector double
-        PSV: y direction unit value of phase space particles (index is particle value).
-    p_dir_z : vector double
-         PSV: z direction unit value of phase space particles (index is particle value).
-    p_dir_x : vector double
-         PSV: x direction unit value of phase space particles (index is particle value).
-    rands : vector doubles
-        from an rng, length: 2*scat_count.
-
-    Returns
-    -------
-    None.
-
-    """
-
-    for i in range(scat_count):
-
+@pk.workload
+class Scatter:
+    def __init__(self,scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands):
+        self.scatter_indices: pk.View1D[int] = scatter_indices
+        self.scat_count: int = scat_count
+        self.p_dir_x: pk.View1D[pk.double] = p_dir_x
+        self.p_dir_y: pk.View1D[pk.double] = p_dir_y
+        self.p_dir_z: pk.View1D[pk.double] = p_dir_z
+        self.rands: pk.View1D[float] = rands 
+    
+    
+    @pk.main
+    def run(self):
+        pk.parallel_for(self.scat_count, self.Scatter_wu)
+    
+    @pk.callback
+    def ReturnScatter(self):
+        print("All done!")
+        
+    @pk.workunit
+    def Scatter_wu(self, i: int):
         # Sample polar and azimuthal angles uniformly
-        mu  = 2.0*rands[2*i] - 1.0
-        azi = 2.0*math.pi*rands[2*i+1]
+        mu: pk.double  = 2.0*self.rands[2*i] - 1.0
+        azi: pk.double = 2.0*3.14159265359*self.rands[2*i+1]
 	    
         # Convert to Cartesian coordinate
-        c = (1.0 - mu**2)**0.5
-        p_dir_y[scatter_indices[i]] = math.cos(azi)*c
-        p_dir_z[scatter_indices[i]] = math.sin(azi)*c
-        p_dir_x[scatter_indices[i]] = mu
-            
-    return(p_dir_x, p_dir_y, p_dir_z)
+        c: pk.double = (1.0 - mu**2)**0.5
+        self.p_dir_y[self.scatter_indices[i]] = math.cos(azi)*c
+        self.p_dir_z[self.scatter_indices[i]] = math.sin(azi)*c
+        self.p_dir_x[self.scatter_indices[i]] = mu
+    
+    
     
 def test_Scatter():
     
     scat_count = 3
-    scatter_indices = [0,1,4]
-    p_dir_x = [1,2,0,0,4]
-    p_dir_y = [1,2,0,0,4]
-    p_dir_z = [1,2,0,0,4]
-    rands = [1,1,0,0,.5,.5]
+    scatter_indices = np.array([0,1,4], dtype=np.int32)
+    p_dir_x = np.array([1,2,0,0,4], dtype=float)
+    p_dir_y = np.array([1,2,0,0,4], dtype=float)
+    p_dir_z = np.array([1,2,0,0,4], dtype=float)
+    rands = np.array([1,1,0,0,.5,.5], dtype=float)
+    
+    p_dir_x = pk.from_numpy(p_dir_x)
+    p_dir_y = pk.from_numpy(p_dir_y)
+    p_dir_z = pk.from_numpy(p_dir_z)
+    
+    rands = pk.from_numpy(rands)
+    
+    scatter_indices = pk.from_numpy(scatter_indices)
     
     
-    [p_dir_x, p_dir_y, p_dir_z] = Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands)
+    
+    pk.execute(pk.ExecutionSpace.OpenMP, Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands))
     
     
     assert(p_dir_y[0] == 0)
@@ -71,6 +75,8 @@ def test_Scatter():
     assert(p_dir_y[4] == -1)
     assert(np.allclose(p_dir_z[4], 0))
     assert(p_dir_x[4] == 0)
+    
+    print("Passed!")
     
 if __name__ == '__main__':
     test_Scatter()
