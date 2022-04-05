@@ -3,7 +3,7 @@
 
 We seek to explore software engineering methods from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: MCDC
 
-## Methods of Implementation
+## Methods of Implementation:
 We explore three methods to implement our transport functions on:
 1. [PyKokkos](https://github.com/kokkos/pykokkos) portability framework;
 2. [Mako templates with hardware code generating libraries](https://github.com/PyFR/PyFR); and
