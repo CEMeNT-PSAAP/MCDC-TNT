@@ -1,7 +1,7 @@
 # MC/DC-TNT
-**Monte Carlo / Dynamic Code - Toy Neutronics Testbed**: Is there an easier way for HPC development? Free from the seg-faults and semi-colons? ¯\\_(ツ)_/¯ Lets find out!
+**Monte Carlo / Dynamic Code - Toy Neutronics Testbed**
 
-We seek to explore software engineering methods from Python to see if we can implement performance portable and *easier* to produce code for a Monte Carlo neutron transport code.
+We seek to explore software engineering methods from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: MCDC
 
 ## Methods of Implementation
 We explore three mothdes to implement our transport functions on:
