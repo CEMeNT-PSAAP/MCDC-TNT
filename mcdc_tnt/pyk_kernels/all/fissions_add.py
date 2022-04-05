@@ -11,7 +11,7 @@ import math
 @pk.workload
 class FissionsAdd:
     def __init__(self, p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_time, p_alive, p_speed,
-                fis_count, nu_new_neutrons, fission_event_index, num_part, particle_speed, rands):
+                fis_count, nu_new_neutrons, fission_event_index, num_part, particle_speed, rands, clever_out):
         self.p_pos_x: pk.View1D[pk.double] = p_pos_x
         self.p_pos_y: pk.View1D[pk.double] = p_pos_y
         self.p_pos_z: pk.View1D[pk.double] = p_pos_z
@@ -27,6 +27,8 @@ class FissionsAdd:
         self.p_speed: pk.View1D[pk.double] = p_speed
         
         self.fission_event_index: pk.View1D[int] = fission_event_index
+        
+        self.clever_out: pk.View1D[int] = clever_out
         
         self.rands: pk.View1D[pk.double] = rands
         
@@ -72,10 +74,9 @@ class FissionsAdd:
                 self.p_alive[k+self.num_part] = 1
                 
                 k+=1
+                
+        clever_out[0] = k
             
-    
-    
-    
 
 def test_FissionsAdd():
     

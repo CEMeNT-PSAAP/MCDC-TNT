@@ -5,10 +5,8 @@ Author: Jackson Morgan (OR State Univ - morgjack@oregonstate.edu) CEMeNT
 Date: Dec 2nd 2021
 """
 import numpy as np
-import numba as nb
 
 
-@nb.jit(nopython=True)# parallel=True)
 def SampleEvent(p_mesh_cell, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, scatter_event_index, capture_event_index, fission_event_index, num_part, nu_new_neutrons, rands):
     """
     Samples the next events of particles under transport
@@ -56,7 +54,7 @@ def SampleEvent(p_mesh_cell, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xs
     mesh_fis_xsec /= total_scat_xsec
     
     
-    for i in nb.prange(num_part):
+    for i in range(num_part):
         if p_alive[i] == True:
             
             event_rand = rands[i]
@@ -88,12 +86,12 @@ def SampleEvent(p_mesh_cell, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xs
                 fission_event_index[fis_count] = i
                 fis_count +=1
                 
-            #else:
-                #print("error: event for particle {part} not sorted properly".format(part =i))
-                #print("random number used: {rand}".format(rand = event_rand))
-                #print(pdf_bounds)
+            else:
+                print("error: event for particle {part} not sorted properly".format(part =i))
+                print("random number used: {rand}".format(rand = event_rand))
+                print(pdf_bounds)
                 
-                #exit()
+                exit()
                 
     return(scatter_event_index, scat_count, capture_event_index, cap_count, fission_event_index, fis_count)
     

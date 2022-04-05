@@ -96,7 +96,7 @@ def test_SampleEvent():
         capture_event_index = np.zeros(3, dtype=np.int32)
         fission_event_index = np.zeros(3, dtype=np.int32) 
         
-        clever_out = np.zeros(3, dtype=np.int32) 
+        
         
         controled_rands = np.array([.2, .4, .8], dtype=float)
         
@@ -116,6 +116,7 @@ def test_SampleEvent():
         
         controled_rands = pk.from_numpy(controled_rands)
         
+        clever_out = np.zeros(3, dtype=np.int32) 
         clever_out = pk.from_numpy(clever_out)
         
         print("Running!")

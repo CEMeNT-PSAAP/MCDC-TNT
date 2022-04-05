@@ -25,36 +25,35 @@ class BringOutYourDead:
         
         self.num_part: int = num_part
         
-        self.kept: int = 0
-        
         self.clever_out: pk.View1D[int] = clever_out
         
     @pk.main
     def BOYD(self):
+        kept: int = 0
         for i in range(num_part):
             if p_alive[i] == 1:
-                
-                self.p_pos_x[self.kept] = self.p_pos_x[i]
-                self.p_pos_y[self.kept] = self.p_pos_y[i]
-                self.p_pos_z[self.kept] = self.p_pos_z[i]
+                self.p_pos_x[kept] = self.p_pos_x[i]
+                self.p_pos_y[kept] = self.p_pos_y[i]
+                self.p_pos_z[kept] = self.p_pos_z[i]
                 
                 # Direction
-                self.p_dir_x[self.kept] = self.p_dir_x[i]
-                self.p_dir_y[self.kept] = self.p_dir_y[i]
-                self.p_dir_z[self.kept] = self.p_dir_z[i]
+                self.p_dir_x[kept] = self.p_dir_x[i]
+                self.p_dir_y[kept] = self.p_dir_y[i]
+                self.p_dir_z[kept] = self.p_dir_z[i]
                 
                 # Speed
-                self.p_speed[self.kept] = self.p_speed[i]
+                self.p_speed[kept] = self.p_speed[i]
                 
                 # Time
-                self.p_time[self.kept] = self.p_time[i]
+                self.p_time[kept] = self.p_time[i]
                 
                 # Regions
-                self.p_mesh_cell[self.kept] = self.p_mesh_cell[i]
+                self.p_mesh_cell[kept] = self.p_mesh_cell[i]
                 
                 # Flags
-                self.p_alive[self.kept] = self.p_alive[i] 
-                self.kept +=1
+                self.p_alive[kept] = self.p_alive[i] 
+                kept +=1
+        #pk.printf('>>>>> %d\n particles kept', kept)
         self.clever_out[0] = kept
                 
     #@pk.callback

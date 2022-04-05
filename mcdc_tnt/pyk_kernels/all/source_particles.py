@@ -11,7 +11,7 @@ import math
 #import numba as nb
 
 @pk.workload
-class Source_Particles:
+class SourceParticles:
     def __init__(self, p_pos_x, p_pos_y, p_pos_z,
                 p_mesh_cell, dx,
                 p_dir_y, p_dir_z, p_dir_x,
@@ -46,44 +46,52 @@ class Source_Particles:
     def run(self):
         #pk.printf("In main\n")
         #pk.printf("\f\n",meshwise_fission_pdf[1])
-        #pk.parallel_for(self.num_parts, self.source_wu)
-        for i in range(self.num_parts):
-            #pk.printf('%d\n',i)
-            #find mesh cell birth based on provided pdf
-            cell: int = 0
-            summer: float = 0.0
-            while (summer < self.rands[i*4]):
-                summer += self.meshwise_fission_pdf[cell]
-                cell += 1
-                    
-            cell -=1
-            
-            #pk.printf('%f\n',self.rands[i*4])
-            self.p_mesh_cell[i] = int(cell)
-            
-            #sample birth location within cell
-            self.p_pos_x[i] = dx*cell + dx*self.rands[i*4+1]
-            self.p_pos_y[i] = 0.0
-            self.p_pos_z[i] = 0.0
-            
-            
-            # Sample polar and azimuthal angles uniformly
-            mu: pk.double  = 2.0*self.rands[i*4+2] - 1.0
-            azi: pk.double = 2.0*self.rands[i*4+3]
+        #p = pk.RangePolicy(pk.get_default_space(), 0, num_parts)
+        #T = pk.Timer()
+        pk.parallel_for(self.num_parts, self.sourceP)
+        #pr: pk.double = T.seconds()
         
-            # Convert to Cartesian coordinate
-            c: pk.double = (1.0 - mu**2)**0.5
-            self.p_dir_y[i] = math.cos(azi)*c
-            self.p_dir_z[i] = math.sin(azi)*c
-            self.p_dir_x[i] = mu
+        #pk.printf('%f\n',pr)
+        
+        
+        #pk.printf('%d\n',i)
+        #find mesh cell birth based on provided pdf+
+    @pk.workunit
+    def sourceP(self, i: int):
+        cell: int = 0
+        summer: float = 0.0
+        while (summer < self.rands[i*4]):
+            summer += self.meshwise_fission_pdf[cell]
+            cell += 1
+                
+        cell -=1
+        
+        #pk.printf('%f\n',self.rands[i*4])
+        self.p_mesh_cell[i] = int(cell)
+        
+        #sample birth location within cell
+        self.p_pos_x[i] = dx*cell + dx*self.rands[i*4+1]
+        self.p_pos_y[i] = 0.0
+        self.p_pos_z[i] = 0.0
+        
+        
+        # Sample polar and azimuthal angles uniformly
+        mu: pk.double  = 2.0*self.rands[i*4+2] - 1.0
+        azi: pk.double = 2.0*self.rands[i*4+3]
+    
+        # Convert to Cartesian coordinate
+        c: pk.double = (1.0 - mu**2)**0.5
+        self.p_dir_y[i] = math.cos(azi)*c
+        self.p_dir_z[i] = math.sin(azi)*c
+        self.p_dir_x[i] = mu
 
-            # Speed
-            self.p_speed[i] = particle_speed
+        # Speed
+        self.p_speed[i] = particle_speed
 
-            # Time
-            self.p_time[i] = 0.0
-            
-            self.p_alive[i] = 1
+        # Time
+        self.p_time[i] = 0.0
+        
+        self.p_alive[i] = 1
     
     #@pk.callback
     #def ReturnSource(self):
