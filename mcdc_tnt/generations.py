@@ -1,7 +1,10 @@
 import numpy as np
+from timeit import default_timer as timer
 
-import numba_kernels.cpu as kernels
 
+
+#import numba_kernels.cpu as kernels
+#import pyk_kernels.ad_o as kernels
 #===============================================================================
 # Simulation Setup
 #===============================================================================
@@ -12,9 +15,10 @@ import numba_kernels.cpu as kernels
 # EVENT 0 : Sample particle sources
 #===============================================================================
 
+#@nb.jit(nopython=True)
 def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, mesh_total_xsec, surface_distances):
     """
-    Runs a generation of transport. Eachone is launched in complete isolation of
+    Runs a generation of transport. Each one is launched in complete isolation of
     another
 
     Parameters
@@ -39,8 +43,19 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     scalar flux and assocated errors.
 
     """
-    #import_case(comp_parms['hard_targ'])
     
+    if comp_parms['hard_targ'] == 'pp':
+        import mcdc_tnt.pp_kernels as kernels
+        
+    elif comp_parms['hard_targ'] == 'nb_cpu':
+        import mcdc_tnt.numba_kernels.cpu as kernels
+        from mcdc_tnt.numba_kernels.warmup import WarmUp
+        WarmUp(comp_parms['p_warmup']) #warmup kernels
+        
+    elif comp_parms['hard_targ'] == 'nb_gpu':
+        import mcdc_tnt.numba_kernels.gpu as kernels
+        from mcdc_tnt.numba_kernels.warmup import WarmUp
+        WarmUp(comp_parms['p_warmup']) #warmup kernels
     
     N_mesh = sim_perams['N_mesh']
     nu_new_neutrons = sim_perams['nu']
@@ -57,7 +72,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     np.random.seed(comp_parms['seed'])
     
     init_particle = num_part
-    meshwise_fission_pdf = np.zeros(N_mesh, dtype=np.float32)
+    meshwise_fission_pdf = np.zeros(N_mesh, dtype=float)
     
     total_mesh_fission_xsec = sum(mesh_fis_xsec)
     for cell in range(N_mesh):
@@ -68,8 +83,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         mesh_fis_xsec[cell] = mesh_fis_xsec[cell] / mesh_total_xsec[cell]
         
     meshwise_fission_pdf /= sum(meshwise_fission_pdf)
-    mesh_dist_traveled = np.zeros(N_mesh, dtype=np.float32)
-    mesh_dist_traveled_squared = np.zeros(N_mesh, dtype=np.float32)
+    mesh_dist_traveled = np.zeros(N_mesh, dtype=float)
+    mesh_dist_traveled_squared = np.zeros(N_mesh, dtype=float)
     
     
     #===============================================================================
@@ -95,8 +110,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     p_time = np.zeros(phase_parts, dtype=float)
     
     # Region
-    p_mesh_cell = np.zeros(phase_parts, dtype=int)
-    
+    p_mesh_cell = np.zeros(phase_parts, dtype=np.int32)
+    #print(p_mesh_cell.dtype)
     # Flags
     p_alive = np.full(phase_parts, False, dtype=bool)
     
@@ -121,7 +136,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     # Generation Loop
     #===============================================================================
     trans = 0
-    g = 0
+    g = 1
     alive = num_part
     trans_lhs = 0
     trans_rhs = 0
@@ -132,6 +147,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         print("===============================================================================")
         print("particles alive at start of event cycle {0}".format(num_part))
         
+        start_o = timer()
+        
         # print("max index {0}".format(num_part))
         #===============================================================================
         # EVENT 1 : Advance
@@ -139,10 +156,14 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         killed = 0
         alive_cycle_start = num_part
         
+        start = timer()
+        
         [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = kernels.Advance(
                 p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
                 num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1])
         
+        end = timer()
+        print('Advance time: {0}'.format(end-start))
         #===============================================================================
         # EVENT 2 : Still in problem
         #===============================================================================
@@ -227,6 +248,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         
         # print(max(p_mesh_cell[0:num_part]))
         g+=1
+        
+        end_o = timer()
+        print('Overall time to completion: {0}'.format(end_o-start_o))
     #===============================================================================
     # Step Output
     #===============================================================================

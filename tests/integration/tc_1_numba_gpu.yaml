@@ -1,6 +1,6 @@
 
 
-name: 'fissioning_slab'
+name: 'fissioning_slab numba_cpu'
 number of particles: 1e5
 rng seed: 777
 particle speed: 1
@@ -16,16 +16,15 @@ surface locations: [0,1]
 
 dx: 0.01
 
-hardware target: pyk_cpu ## pp/nb_cpu/nb_gpu/pyk_cpu/pyk_gpu
+hardware target: nb_gpu ## pp/nb_cpu/nb_gpu/pyk_cpu/pyk_gpu
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
 capture cross section: 0.333
 scatter cross section: 0.333
 fission cross section: 0.333
-mesh file: mesh_data.csv
 
 file output: True
 
-error plot: True
-flux plot: True
+error plot: False
+flux plot: False

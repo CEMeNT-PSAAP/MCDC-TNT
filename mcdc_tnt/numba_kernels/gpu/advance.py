@@ -8,34 +8,62 @@ Date: Dec 2nd 2021
 import math
 import numpy as np
 import numba as nb
-from numba import njit
-from numba.openmp import openmp_context as openmp
-from numba.openmp import omp_get_num_threads
+from numba import cuda
 
-@nb.njit
+#@cuda.jit(nopython=True)
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
     
-    p_end_trans = np.zeros(num_part)
+    
+    
+    p_end_trans = np.zeros(num_part, dtype=int)
     end_flag = 0
     max_mesh_index = len(mesh_total_xsec)-1
     
     cycle_count = 0
+    
+    #copy data to cuda device
+    d_p_pos_x = cuda.to_device(p_pos_x)
+    d_p_pos_y = cuda.to_device(p_pos_y)
+    d_p_pos_z = cuda.to_device(p_pos_z)
+    d_p_dir_y = cuda.to_device(p_dir_y)
+    d_p_dir_z = cuda.to_device(p_dir_z)
+    d_p_dir_x = cuda.to_device(p_dir_x)
+    d_p_mesh_cell = cuda.to_device(p_mesh_cell)
+    d_p_speed = cuda.to_device(p_speed)
+    d_p_time = cuda.to_device(p_time)
+    d_p_end_trans = cuda.to_device(p_end_trans)
+    d_mesh_total_xsec = cuda.to_device(mesh_total_xsec)
+    
+    threadsperblock = 32
+    blockspergrid = (num_part + (threadsperblock - 1)) // threadsperblock
+    #ScatterCuda[blockspergrid, threadsperblock](d_scatter_indices, d_p_dir_x, d_p_dir_y, d_p_dir_z, d_p_rands)
+    
+    
     while end_flag == 0:
         #allocate randoms
         rands = np.random.rand(num_part)
+        d_rands = cuda.to_device(rands)
         #vector of indicies for particle transport
         
-        p_dist_travled = np.zeros(num_part)
+        p_dist_travled = np.zeros(num_part, dtype=float)
+        d_p_dist_travled = cuda.to_device(p_dist_travled)
         
         pre_p_mesh = p_mesh_cell
         
-        #print("Into advance")
-        Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
-                          p_dir_y, p_dir_z, p_dir_x, 
-                          p_mesh_cell, p_speed, p_time,  
-                          dx, mesh_total_xsec, L,
-                          p_dist_travled, p_end_trans, rands, num_part)
+        AdvanceCuda[blockspergrid, threadsperblock](d_p_pos_x, d_p_pos_y, d_p_pos_z,
+                          d_p_dir_y, d_p_dir_z, d_p_dir_x, 
+                          d_p_mesh_cell, d_p_speed, d_p_time,  
+                          dx, d_mesh_total_xsec, L,
+                          d_p_dist_travled, d_p_end_trans, d_rands, num_part)
+        
+        
+        #retrive two important peices of data
+        p_dist_travled = d_p_dist_travled.copy_to_host()
+        p_dir_z = d_p_dir_z.copy_to_host()
+        p_mesh_cell = d_p_mesh_cell.copy_to_host()
+        p_end_trans = d_p_end_trans.copy_to_host()
+        
         
         end_flag = 1
         for i in range(num_part):
@@ -45,64 +73,72 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                 
             if p_end_trans[i] == 0:
                 end_flag = 0
-            
+        
         summer = p_end_trans.sum()
         cycle_count += 1
-    
+        
+        print("Advance Complete:......{1}%       ".format(cycle_count, int(100*summer/num_part)), end = "\r")
+    print()
+        
+    p_pos_x = d_p_pos_x.copy_to_host()
+    p_pos_y = d_p_pos_y.copy_to_host()
+    p_pos_z = d_p_pos_z.copy_to_host()
+    p_dir_y = d_p_dir_y.copy_to_host()
+    p_dir_z = d_p_dir_z.copy_to_host()
+    p_dir_x = d_p_dir_x.copy_to_host()
+    p_speed = d_p_speed.copy_to_host()
+    p_time = d_p_time.copy_to_host()
+
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
 
 
-@nb.njit
-def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
+
+@cuda.jit 
+def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
                   p_dir_y, p_dir_z, p_dir_x, 
                   p_mesh_cell, p_speed, p_time,  
                   dx, mesh_total_xsec, L,
                   p_dist_travled, p_end_trans, rands, num_part):
-    
-    with openmp ('parallel shared(numThreads)'):
-        with openmp('single'):
-            numThreads = omp_get_num_threads()
-            
-    with openmp ('parallel for'):
-    
-        for i in range(num_part):
-            kicker = 1e-10
 
-            if (p_end_trans[i] == 0):
-                if (p_pos_x[i] < 0): #exited rhs
+    kicker = 1e-10
+    i = cuda.grid(1)
+    
+    if (i < num_part):
+    
+        if (p_end_trans[i] == 0):
+            if (p_pos_x[i] < 0): #exited rhs
+                p_end_trans[i] = 1
+            elif (p_pos_x[i] >= L): #exited lhs
+                p_end_trans[i] = 1
+                
+            else:
+                dist = -math.log(rands[i]) / mesh_total_xsec[p_mesh_cell[i]]
+                
+                x_loc = (p_dir_x[i] * dist) + p_pos_x[i]
+                LB = p_mesh_cell[i] * dx
+                RB = LB + dx
+                
+                if (x_loc < LB):        #move partilce into cell at left
+                    p_dist_travled[i] = (LB - p_pos_x[i])/p_dir_x[i] + kicker
+                    cell_next = p_mesh_cell[i] - 1
+                   
+                elif (x_loc > RB):      #move particle into cell at right
+                    p_dist_travled[i] = (RB - p_pos_x[i])/p_dir_x[i] + kicker
+                    cell_next = p_mesh_cell[i] + 1
+                    
+                else:                   #move particle in cell
+                    p_dist_travled[i] = dist
                     p_end_trans[i] = 1
-                elif (p_pos_x[i] >= L): #exited lhs
-                    p_end_trans[i] = 1
+                    cell_next = p_mesh_cell[i]
                     
-                else:
-                    dist = -math.log(rands[i]) / mesh_total_xsec[p_mesh_cell[i]]
-                    
-                    x_loc = (p_dir_x[i] * dist) + p_pos_x[i]
-                    LB = p_mesh_cell[i] * dx
-                    RB = LB + dx
-                    
-                    if (x_loc < LB):        #move partilce into cell at left
-                        p_dist_travled[i] = (LB - p_pos_x[i])/p_dir_x[i] + kicker
-                        cell_next = p_mesh_cell[i] - 1
-                       
-                    elif (x_loc > RB):      #move particle into cell at right
-                        p_dist_travled[i] = (RB - p_pos_x[i])/p_dir_x[i] + kicker
-                        cell_next = p_mesh_cell[i] + 1
-                        
-                    else:                   #move particle in cell
-                        p_dist_travled[i] = dist
-                        p_end_trans[i] = 1
-                        cell_next = p_mesh_cell[i]
-                        
-                    p_pos_x[i] += p_dir_x[i]*p_dist_travled[i]
-                    p_pos_y[i] += p_dir_y[i]*p_dist_travled[i]
-                    p_pos_z[i] += p_dir_z[i]*p_dist_travled[i]
-                    
-                    p_mesh_cell[i] = cell_next
-                    p_time[i]  += p_dist_travled[i]/p_speed[i]
-                        
-    #return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_dist_travled, p_end_trans)
+                p_pos_x[i] += p_dir_x[i]*p_dist_travled[i]
+                p_pos_y[i] += p_dir_y[i]*p_dist_travled[i]
+                p_pos_z[i] += p_dir_z[i]*p_dist_travled[i]
+                
+                p_mesh_cell[i] = cell_next
+                p_time[i]  += p_dist_travled[i]/p_speed[i]
+            
 
 
 
