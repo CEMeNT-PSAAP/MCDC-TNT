@@ -11,7 +11,7 @@ import numba as nb
 from numba import cuda
 
 #@nb.jit(nopython=True)
-#@profile
+@profile
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
     
