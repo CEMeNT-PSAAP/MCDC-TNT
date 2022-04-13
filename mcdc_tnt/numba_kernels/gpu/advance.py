@@ -10,7 +10,8 @@ import numpy as np
 import numba as nb
 from numba import cuda
 
-#@cuda.jit(nopython=True)
+#@nb.jit(nopython=True)
+#@profile
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
     
@@ -38,7 +39,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     threadsperblock = 32
     blockspergrid = (num_part + (threadsperblock - 1)) // threadsperblock
     #ScatterCuda[blockspergrid, threadsperblock](d_scatter_indices, d_p_dir_x, d_p_dir_y, d_p_dir_z, d_p_rands)
-    
+    summer = num_part
     
     while end_flag == 0:
         #allocate randoms
@@ -52,10 +53,10 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
         pre_p_mesh = p_mesh_cell
         
         AdvanceCuda[blockspergrid, threadsperblock](d_p_pos_x, d_p_pos_y, d_p_pos_z,
-                          d_p_dir_y, d_p_dir_z, d_p_dir_x, 
-                          d_p_mesh_cell, d_p_speed, d_p_time,  
-                          dx, d_mesh_total_xsec, L,
-                          d_p_dist_travled, d_p_end_trans, d_rands, num_part)
+                      d_p_dir_y, d_p_dir_z, d_p_dir_x, 
+                      d_p_mesh_cell, d_p_speed, d_p_time,  
+                      dx, d_mesh_total_xsec, L,
+                      d_p_dist_travled, d_p_end_trans, d_rands, num_part)
         
         
         #retrive two important peices of data
@@ -66,19 +67,13 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
         
         
         end_flag = 1
-        for i in range(num_part):
-            if (0 < pre_p_mesh[i] < max_mesh_index):
-                mesh_dist_traveled[pre_p_mesh[i]] += p_dist_travled[i]
-                mesh_dist_traveled_squared[pre_p_mesh[i]] += p_dist_travled[i]**2
-                
-            if p_end_trans[i] == 0:
-                end_flag = 0
         
-        summer = p_end_trans.sum()
+        [end_flag, summer] = DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_travled, p_mesh_cell, p_end_trans)
+        
         cycle_count += 1
         
-        print("Advance Complete:......{1}%       ".format(cycle_count, int(100*summer/num_part)), end = "\r")
-    print()
+        #print("Advance Complete:......{1}%       ".format(cycle_count, int(100*summer/num_part)), end = "\r")
+    #print()
         
     p_pos_x = d_p_pos_x.copy_to_host()
     p_pos_y = d_p_pos_y.copy_to_host()
@@ -91,6 +86,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
 
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
+
 
 
 
@@ -138,7 +134,28 @@ def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
                 
                 p_mesh_cell[i] = cell_next
                 p_time[i]  += p_dist_travled[i]/p_speed[i]
+
+
+@nb.jit(nopython=True)
+def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled_pk, mesh_dist_traveled_squared_pk, p_dist_travled, mesh, p_end_trans):
+
+    end_flag = 1
+    cur_cell = 0
+    summer = 0
+    
+    for i in range(num_part):
+        cur_cell = int(mesh[i])
+        if (0 < cur_cell) and (cur_cell < max_mesh_index):
+            mesh_dist_traveled_pk[cur_cell] += p_dist_travled[i]
+            mesh_dist_traveled_squared_pk[cur_cell] += p_dist_travled[i]**2
             
+        if p_end_trans[i] == 0:
+            end_flag = 0
+            
+        summer += p_end_trans[i]
+
+    return(end_flag, summer)
+
 
 
 

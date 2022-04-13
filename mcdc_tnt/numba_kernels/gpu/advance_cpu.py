@@ -9,8 +9,7 @@ import math
 import numpy as np
 import numba as nb
 
-#@nb.jit(nopython=True)
-@profile
+@nb.jit(nopython=True)
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
     
@@ -34,8 +33,16 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                           dx, mesh_total_xsec, L,
                           p_dist_travled, p_end_trans, rands, num_part)
         
-        [end_flag, summer] = DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_travled, p_mesh_cell, p_end_trans)
-        
+        end_flag = 1
+        for i in range(num_part):
+            if (0 < pre_p_mesh[i] < max_mesh_index):
+                mesh_dist_traveled[pre_p_mesh[i]] += p_dist_travled[i]
+                mesh_dist_traveled_squared[pre_p_mesh[i]] += p_dist_travled[i]**2
+                
+            if p_end_trans[i] == 0:
+                end_flag = 0
+            
+        summer = p_end_trans.sum()
         cycle_count += 1
     
     
@@ -101,28 +108,6 @@ def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
             p_mesh_cell = cell_next
             p_time  += p_dist_travled/p_speed
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_dist_travled, p_end_trans)
-
-
-@nb.jit(nopython=True)
-def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled_pk, mesh_dist_traveled_squared_pk, p_dist_travled, mesh, p_end_trans):
-
-    end_flag = 1
-    cur_cell = 0
-    summer = 0
-    
-    for i in range(num_part):
-        cur_cell = int(mesh[i])
-        if (0 < cur_cell) and (cur_cell < max_mesh_index):
-            mesh_dist_traveled_pk[cur_cell] += p_dist_travled[i]
-            mesh_dist_traveled_squared_pk[cur_cell] += p_dist_travled[i]**2
-            
-        if p_end_trans[i] == 0:
-            end_flag = 0
-            
-        summer += p_end_trans[i]
-
-    return(end_flag, summer)
-
 
 
 
