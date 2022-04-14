@@ -142,7 +142,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     alive = num_part
     trans_lhs = 0
     trans_rhs = 0
-    while alive > 0:
+    while alive > 100:
         print("")
         print("===============================================================================")
         print("                             Event Cycle {0}".format(g))
@@ -163,6 +163,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = kernels.Advance(
                 p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
                 num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1])
+        
+        #print(mesh_dist_traveled)
         
         end = timer()
         print('Advance time: {0}'.format(end-start))

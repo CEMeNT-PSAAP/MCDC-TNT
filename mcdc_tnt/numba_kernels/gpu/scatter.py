@@ -7,29 +7,12 @@ Date: Dec 2nd 2021
 
 import math
 import numpy as np
-from numba import cuda
+import numba as nb
 
-@cuda.jit
-def ScatterCuda(d_scatter_indices, p_dir_x, p_dir_y, p_dir_z, rands):
-    
-    i = cuda.grid(1)
-    
-    if (i < d_scatter_indices.size):
-
-        # Sample polar and azimuthal angles uniformly
-        mu  = 2.0*rands[2*i] - 1.0
-        azi = 2.0*math.pi*rands[2*i+1]
-        
-        # Convert to Cartesian coordinate
-        c = (1.0 - mu**2)**0.5
-        p_dir_y[d_scatter_indices[i]] = math.cos(azi)*c
-        p_dir_z[d_scatter_indices[i]] = math.sin(azi)*c
-        p_dir_x[d_scatter_indices[i]] = mu
-
-
+@nb.jit(nopython=True, parallel=True)
 def Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands):
     """
-    NUMBA CUDA Kernel: Isotropically chosses new particle directions after a scatter event
+    Isotropically chosses new particle directions after a scatter event
 
     Parameters
     ----------
@@ -51,31 +34,29 @@ def Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands):
     None.
 
     """
-    d_scatter_indices = cuda.to_device(scatter_indices)
-    d_p_dir_x = cuda.to_device(p_dir_x)
-    d_p_dir_y = cuda.to_device(p_dir_y)
-    d_p_dir_z = cuda.to_device(p_dir_z)
-    d_p_rands = cuda.to_device(rands)
-    
-    threadsperblock = 32
-    blockspergrid = (scat_count + (threadsperblock - 1)) // threadsperblock
-    ScatterCuda[blockspergrid, threadsperblock](d_scatter_indices, d_p_dir_x, d_p_dir_y, d_p_dir_z, d_p_rands)
-    
-    p_dir_x = d_p_dir_x.copy_to_host()
-    p_dir_y = d_p_dir_y.copy_to_host()
-    p_dir_z = d_p_dir_z.copy_to_host()
-    
+
+    for i in nb.prange(scat_count):
+
+        # Sample polar and azimuthal angles uniformly
+        mu  = 2.0*rands[2*i] - 1.0
+        azi = 2.0*math.pi*rands[2*i+1]
+	    
+        # Convert to Cartesian coordinate
+        c = (1.0 - mu**2)**0.5
+        p_dir_y[scatter_indices[i]] = math.cos(azi)*c
+        p_dir_z[scatter_indices[i]] = math.sin(azi)*c
+        p_dir_x[scatter_indices[i]] = mu
+            
     return(p_dir_x, p_dir_y, p_dir_z)
     
-
 def test_Scatter():
     
     scat_count = 3
-    scatter_indices = np.array([0,1,4], dtype=int)
-    p_dir_x = np.array([1,2,0,0,4])
-    p_dir_y = np.array([1,2,0,0,4])
-    p_dir_z = np.array([1,2,0,0,4])
-    rands = np.array([1,1,0,0,.5,.5])
+    scatter_indices = [0,1,4]
+    p_dir_x = [1,2,0,0,4]
+    p_dir_y = [1,2,0,0,4]
+    p_dir_z = [1,2,0,0,4]
+    rands = [1,1,0,0,.5,.5]
     
     
     [p_dir_x, p_dir_y, p_dir_z] = Scatter(scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands)

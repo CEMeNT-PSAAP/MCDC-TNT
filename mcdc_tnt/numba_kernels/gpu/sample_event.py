@@ -8,7 +8,7 @@ import numpy as np
 import numba as nb
 
 
-@nb.jit(nopython=True, parallel=True)
+@nb.jit(nopython=True)# parallel=True)
 def SampleEvent(p_mesh_cell, p_alive, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, scatter_event_index, capture_event_index, fission_event_index, num_part, nu_new_neutrons, rands):
     """
     Samples the next events of particles under transport
