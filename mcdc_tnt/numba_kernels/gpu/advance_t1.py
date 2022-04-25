@@ -9,7 +9,6 @@ import math
 import numpy as np
 import numba as nb
 from numba import cuda
-from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform_float32
 
 #@nb.jit(nopython=True)
 #@profile
@@ -28,52 +27,65 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     d_p_pos_x = cuda.to_device(p_pos_x)
     d_p_pos_y = cuda.to_device(p_pos_y)
     d_p_pos_z = cuda.to_device(p_pos_z)
+    
     d_p_dir_y = cuda.to_device(p_dir_y)
     d_p_dir_z = cuda.to_device(p_dir_z)
     d_p_dir_x = cuda.to_device(p_dir_x)
+    
     d_p_mesh_cell = cuda.to_device(p_mesh_cell)
     d_p_speed = cuda.to_device(p_speed)
     d_p_time = cuda.to_device(p_time)
     d_p_end_trans = cuda.to_device(p_end_trans)
     d_mesh_total_xsec = cuda.to_device(mesh_total_xsec)
     
-    d_mesh_dist_traveled = cuda.to_device(mesh_dist_traveled)
-    d_mesh_dist_traveled_squared = cuda.to_device(mesh_dist_traveled_squared)
-    
-    
+    #d_mesh_dist_traveled = cuda.to_device(mesh_dist_traveled)
+    #d_mesh_dist_traveled_squared = cuda.to_device(mesh_dist_traveled_squared)
     
     threadsperblock = 32
     blockspergrid = (num_part + (threadsperblock - 1)) // threadsperblock
-    
-    d_rands = create_xoroshiro128p_states(threadsperblock * blockspergrid, seed=1)
-    
     summer = num_part
     
-    number_done = np.zeros(1, dtype=np.int32)
-    #d_number_done = cuda.to_device(number_done)
-    
-    while end_flag == 0 and cycle_count < 1000:
+    while end_flag == 0:
         #allocate randoms
-        #rands = rands_nb(num_part)
-        #d_rands = cuda.to_device(rands)
-
+        rands = np.random.rand(num_part)
+        d_rands = cuda.to_device(rands)
+        #vector of indicies for particle transport
+        
+        p_dist_travled = np.zeros(num_part)
+        d_p_dist_travled = cuda.to_device(p_dist_travled)
+        
+        pre_p_mesh = p_mesh_cell
+        
         AdvanceCuda[blockspergrid, threadsperblock](d_p_pos_x, d_p_pos_y, d_p_pos_z,
                       d_p_dir_y, d_p_dir_z, d_p_dir_x, 
                       d_p_mesh_cell, d_p_speed, d_p_time,  
                       dx, d_mesh_total_xsec, L,
-                      d_p_end_trans, d_rands, num_part, d_mesh_dist_traveled, d_mesh_dist_traveled_squared, max_mesh_index, number_done)
+                      d_p_end_trans, d_rands, num_part,p_dist_travled) #, d_mesh_dist_traveled, d_mesh_dist_traveled_squared
         
-        #print(number_done)
+        #print('Through advance')
+        
+        p_dist_travled = d_p_dist_travled.copy_to_host()
+        p_dir_z = d_p_dir_z.copy_to_host()
+        p_mesh_cell = d_p_mesh_cell.copy_to_host()
+        p_end_trans = d_p_end_trans.copy_to_host()
         
         
-        if (number_done == num_part):
-            end_flag = 1
+        end_flag = 1
+        
+        [end_flag, summer, mesh_dist_traveled, mesh_dist_traveled_squared] = DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_travled, p_mesh_cell, p_end_trans)
+        
+        #number_done = red(d_p_end_trans)
+        
+        #print('Through reduction: {0} out of {1}'.format(number_done, num_part))
+        
+        #if (number_done == num_part):
+            #end_flag = 1
+        
         
         
         cycle_count += 1
-        #print("Number done (atomics): {0}    Number done (classical): {1}".format(d_number_done[0], number_done_2))
         
-        print("Advance Complete:......{1}%       ".format(cycle_count, int(100*number_done/num_part)), end = "\r")
+        #print("Advance Complete:......{1}%       ".format(cycle_count, int(100*summer/num_part)), end = "\r")
     #print()
         
     p_pos_x = d_p_pos_x.copy_to_host()
@@ -85,79 +97,98 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     p_speed = d_p_speed.copy_to_host()
     p_time = d_p_time.copy_to_host()
     
-    p_mesh_cell = d_p_mesh_cell.copy_to_host()
-    
-    mesh_dist_traveled = d_mesh_dist_traveled.copy_to_host()
-    mesh_dist_traveled_squared = d_mesh_dist_traveled_squared.copy_to_host()
-    
+    #mesh_dist_traveled = d_mesh_dist_traveled.copy_to_host()
+    #mesh_dist_traveled_squared = d_mesh_dist_traveled_squared.copy_to_host()
+
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
 
 
-#@nb.jit(nopython=True)
-#def rands_nb(n):
-#    return np.random.rand(n)
 
-@cuda.jit
+
+@cuda.jit 
 def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
                   p_dir_y, p_dir_z, p_dir_x, 
                   p_mesh_cell, p_speed, p_time,  
                   dx, mesh_total_xsec, L,
-                  p_end_trans, rands, num_part, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, num_dead):
-    
-    
+                  p_end_trans, rands, num_part, p_dist_travled): #mesh_dist_traveled, mesh_dist_traveled_squared
     
     kicker = 1e-10
     i = cuda.grid(1)
-    int_cell: int = p_mesh_cell[i]
-    p_dist_travled: float = 0.0
+    #p_dist_travled = 0.0
     
     if (i < num_part):
     
         if (p_end_trans[i] == 0):
             if (p_pos_x[i] < 0): #exited rhs
                 p_end_trans[i] = 1
-                cuda.atomic.add(num_dead, 0, 1)
             elif (p_pos_x[i] >= L): #exited lhs
                 p_end_trans[i] = 1
-                cuda.atomic.add(num_dead, 0, 1)
                 
             else:
-                dist = -math.log(xoroshiro128p_uniform_float32(rands,i)) / mesh_total_xsec[p_mesh_cell[i]]
+                dist = -math.log(rands[i]) / mesh_total_xsec[p_mesh_cell[i]]
                 
                 x_loc = (p_dir_x[i] * dist) + p_pos_x[i]
                 LB = p_mesh_cell[i] * dx
                 RB = LB + dx
                 
                 if (x_loc < LB):        #move partilce into cell at left
-                    p_dist_travled = (LB - p_pos_x[i])/p_dir_x[i] + kicker
+                    p_dist_travled[i] = (LB - p_pos_x[i])/p_dir_x[i] + kicker
                     cell_next = p_mesh_cell[i] - 1
                    
                 elif (x_loc > RB):      #move particle into cell at right
-                    p_dist_travled = (RB - p_pos_x[i])/p_dir_x[i] + kicker
+                    p_dist_travled[i] = (RB - p_pos_x[i])/p_dir_x[i] + kicker
                     cell_next = p_mesh_cell[i] + 1
                     
                 else:                   #move particle in cell
-                    p_dist_travled = dist
+                    p_dist_travled[i] = dist
                     p_end_trans[i] = 1
-                    cuda.atomic.add(num_dead, 0, 1)
                     cell_next = p_mesh_cell[i]
                     
-                p_pos_x[i] += p_dir_x[i]*p_dist_travled
-                p_pos_y[i] += p_dir_y[i]*p_dist_travled
-                p_pos_z[i] += p_dir_z[i]*p_dist_travled
-                
-                if (0 < int_cell) and (int_cell < max_mesh_index):
-                    cuda.atomic.add(mesh_dist_traveled, int_cell, p_dist_travled)
-                    cuda.atomic.add(mesh_dist_traveled_squared, int_cell, p_dist_travled**2)
+                p_pos_x[i] += p_dir_x[i]*p_dist_travled[i]
+                p_pos_y[i] += p_dir_y[i]*p_dist_travled[i]
+                p_pos_z[i] += p_dir_z[i]*p_dist_travled[i]
                 
                 p_mesh_cell[i] = cell_next
-                p_time[i]  += p_dist_travled/p_speed[i]
+                p_time[i]  += p_dist_travled[i]/p_speed[i]
                 
+                #mesh_part_index[p_mesh_cell, cell_pop[p_mesh_cell]] = i
+                #cell_pop[p_mesh_cell] += 1
+                #sq = 
                 
+                #cuda.atomic.add(mesh_dist_traveled, cell_next, p_dist_travled)
+                #cuda.atomic.add(mesh_dist_traveled_squared, cell_next, p_dist_travled**2)
                 
+@cuda.reduce
+def red(a, b):
+    return a + b
 
-@nb.jit(nopython=True) 
+
+@nb.jit(nopython=True)
+def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled_pk, mesh_dist_traveled_squared_pk, p_dist_travled, mesh, p_end_trans):
+
+    end_flag = 1
+    cur_cell = 0
+    summer = 0
+    
+    for i in range(num_part):
+        cur_cell = int(mesh[i])
+        if (0 < cur_cell) and (cur_cell < max_mesh_index):
+            mesh_dist_traveled_pk[cur_cell] += p_dist_travled[i]
+            mesh_dist_traveled_squared_pk[cur_cell] += p_dist_travled[i]**2
+            
+        if p_end_trans[i] == 0:
+            end_flag = 0
+            
+        summer += p_end_trans[i]
+
+    return(end_flag, summer, mesh_dist_traveled_pk, mesh_dist_traveled_squared_pk)
+
+
+
+
+
+
 def StillIn(p_pos_x, surface_distances, p_alive, num_part):
     tally_left = 0
     tally_right = 0
@@ -236,3 +267,4 @@ def test_StillIn():
 if __name__ == '__main__':
     test_Advance()
     test_StillIn()
+    

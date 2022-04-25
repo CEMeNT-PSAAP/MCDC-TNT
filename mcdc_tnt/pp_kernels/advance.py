@@ -58,9 +58,11 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
         
         flag = 1
         while (flag == 1):
-            if (p_pos_x[i] < 0): #exited rhs
+            if (p_pos_x[i] < 0): #refelcted rhs
                 flag = 0
-            elif (p_pos_x[i] >= L): #exited lhs
+                
+                
+            elif (p_pos_x[i] >= L): #reflected lhs
                 flag = 0
                 
             else:
@@ -101,20 +103,24 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
 
 
 
-def StillIn(p_pos_x, surface_distances, p_alive, num_part):
+def StillIn(p_pos_x, p_dir_x, surface_distances, p_alive, num_part):
     tally_left = 0
     tally_right = 0
+    L = surface_distances[len(surface_distances)-1]
     for i in range(num_part):
         #exit at left
         if p_pos_x[i] <= surface_distances[0]:
             tally_left += 1
             p_alive[i] = False
-            
-        elif p_pos_x[i] >= surface_distances[len(surface_distances)-1]:
+        
+        #reflected right
+        elif p_pos_x[i] >= L:
             tally_right += 1
-            p_alive[i] = False
+            p_dir_x[i] = -p_dir_x[i]
+            p_pos_x[i] = L-0.00000001
+            #p_alive[i] = False
             
-    return(p_alive, tally_left, tally_right)
+    return(p_pos_x, p_dir_x, p_alive, tally_left, tally_right)
     
     
     

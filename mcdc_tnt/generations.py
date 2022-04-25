@@ -133,6 +133,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
                                                       num_part, meshwise_fission_pdf,
                                                       particle_speed, sim_perams['iso'])
     
+    total_size = p_pos_x.nbytes + p_pos_y.nbytes + p_pos_z.nbytes + p_dir_z.nbytes + p_dir_x.nbytes + p_dir_y.nbytes + p_mesh_cell.nbytes + p_speed.nbytes + p_time.nbytes + p_alive.nbytes + mesh_total_xsec.nbytes + mesh_dist_traveled.nbytes + mesh_dist_traveled_squared.nbytes
+    
+    print('Total size of problem to be sent to GPU: {0} GB'.format(total_size/1e9))
+    
     
     #===============================================================================
     # Generation Loop
@@ -142,6 +146,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     alive = num_part
     trans_lhs = 0
     trans_rhs = 0
+    switch_flag = 0
     while alive > 100:
         print("")
         print("===============================================================================")
@@ -159,6 +164,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         alive_cycle_start = num_part
         
         start = timer()
+        if (comp_parms['hard_targ'] == 'nb_gpu') and (num_part < 50000) and (switch_flag == 0):
+            print('Switching to CPU')
+            import mcdc_tnt.numba_kernels.cpu as kernels
+            switch_flag = 1
         
         [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = kernels.Advance(
                 p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
@@ -171,7 +180,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         #===============================================================================
         # EVENT 2 : Still in problem
         #===============================================================================
-        [p_alive, tally_left_t, tally_right_t] = kernels.StillIn(p_pos_x, surface_distances, p_alive, num_part)
+        [p_pos_x, p_dir_x, p_alive, tally_left_t, tally_right_t] = kernels.StillIn(p_pos_x, p_dir_x, surface_distances, p_alive, num_part)
+        print(np.size(p_pos_x))
+        print(np.size(p_pos_x))
         
         trans_lhs += tally_left_t
         trans_rhs += tally_right_t
@@ -234,7 +245,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         #         alive_now +=1
         # print("k = {0} (pop now/pop last)".format(alive_now/alive_last))
         
-            
+        
         #===============================================================================
         # Event 5: Purge the dead
         #===============================================================================
