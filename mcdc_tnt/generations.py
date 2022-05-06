@@ -50,8 +50,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     elif comp_parms['hard_targ'] == 'nb_cpu':
         print('loading cpu')
         import mcdc_tnt.numba_kernels.cpu as kernels
-        from mcdc_tnt.numba_kernels.warmup import WarmUp
-        WarmUp(comp_parms['p_warmup']) #warmup kernels
+        #from mcdc_tnt.numba_kernels.warmup import WarmUp
+        #WarmUp(comp_parms['p_warmup']) #warmup kernels
         
     elif comp_parms['hard_targ'] == 'nb_gpu':
         print('loading gpu')
@@ -64,7 +64,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     num_part = sim_perams['num']
     dx = sim_perams['dx']
     particle_speed = sim_perams['part_speed']
-    
+    dat_type = comp_parms['data type']
+    dt = sim_perams['dt']
+    max_time = sim_perams['max time']
+    N_time = sim_perams['N_time']
     
     #===============================================================================
     # Initial setups
@@ -74,7 +77,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     np.random.seed(comp_parms['seed'])
     
     init_particle = num_part
-    meshwise_fission_pdf = np.zeros(N_mesh, dtype=float)
+    meshwise_fission_pdf = np.zeros(N_mesh, dtype=dat_type)
     
     total_mesh_fission_xsec = sum(mesh_fis_xsec)
     for cell in range(N_mesh):
@@ -85,44 +88,45 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         mesh_fis_xsec[cell] = mesh_fis_xsec[cell] / mesh_total_xsec[cell]
         
     meshwise_fission_pdf /= sum(meshwise_fission_pdf)
-    mesh_dist_traveled = np.zeros(N_mesh, dtype=float)
-    mesh_dist_traveled_squared = np.zeros(N_mesh, dtype=float)
+    
+    # last Ntime itter is for all post times in the particle generation scheem
+    
+    mesh_dist_traveled = np.zeros([N_mesh, N_time], dtype=dat_type)
+    mesh_dist_traveled_squared = np.zeros([N_mesh, N_time], dtype=dat_type)
     
     
     #===============================================================================
     # Allocate particle phase space
     #===============================================================================
     
-    phase_parts = 5*num_part #see note about data storage
+    phase_parts = int(1.5*num_part) #see note about data storage
     
     # Position
-    p_pos_x = np.zeros(phase_parts, dtype=float)
-    p_pos_y = np.zeros(phase_parts, dtype=float)
-    p_pos_z = np.zeros(phase_parts, dtype=float)
+    p_pos_x = np.zeros(phase_parts, dtype=dat_type)
+    p_pos_y = np.zeros(phase_parts, dtype=dat_type)
+    p_pos_z = np.zeros(phase_parts, dtype=dat_type)
     
     # Direction
-    p_dir_x = np.zeros(phase_parts, dtype=float)
-    p_dir_y = np.zeros(phase_parts, dtype=float)
-    p_dir_z = np.zeros(phase_parts, dtype=float)
+    p_dir_x = np.zeros(phase_parts, dtype=dat_type)
+    p_dir_y = np.zeros(phase_parts, dtype=dat_type)
+    p_dir_z = np.zeros(phase_parts, dtype=dat_type)
     
     # Speed
-    p_speed = np.zeros(phase_parts, dtype=float)
+    p_speed = np.zeros(phase_parts, dtype=dat_type)
     
     # Time
-    p_time = np.zeros(phase_parts, dtype=float)
+    p_time = np.zeros(phase_parts, dtype=dat_type)
+    p_time_cell = np.zeros(phase_parts, dtype=np.int32)
     
     # Region
     p_mesh_cell = np.zeros(phase_parts, dtype=np.int32)
     #print(p_mesh_cell.dtype)
     # Flags
-    p_alive = np.full(phase_parts, False, dtype=bool)
+    p_alive = np.full(phase_parts, False, dtype=np.int32)
     
-    #mesh_particle_index = np.zeros([N_mesh, phase_parts], dtype=np.uint8)
-    
-    
-    scatter_event_index = np.zeros(phase_parts, dtype=int)
-    capture_event_index = np.zeros(phase_parts, dtype=int)
-    fission_event_index = np.zeros(phase_parts, dtype=int)
+    scatter_event_index = np.zeros(phase_parts, dtype=np.int32)
+    capture_event_index = np.zeros(phase_parts, dtype=np.int32)
+    fission_event_index = np.zeros(phase_parts, dtype=np.int32)
     
     
     [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, 
@@ -133,10 +137,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
                                                       num_part, meshwise_fission_pdf,
                                                       particle_speed, sim_perams['iso'])
     
+    
     total_size = p_pos_x.nbytes + p_pos_y.nbytes + p_pos_z.nbytes + p_dir_z.nbytes + p_dir_x.nbytes + p_dir_y.nbytes + p_mesh_cell.nbytes + p_speed.nbytes + p_time.nbytes + p_alive.nbytes + mesh_total_xsec.nbytes + mesh_dist_traveled.nbytes + mesh_dist_traveled_squared.nbytes
     
     print('Total size of problem to be sent to GPU: {0} GB'.format(total_size/1e9))
-    
     
     #===============================================================================
     # Generation Loop
@@ -146,6 +150,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     alive = num_part
     trans_lhs = 0
     trans_rhs = 0
+    tally_time = 0
     switch_flag = 0
     while alive > 100:
         print("")
@@ -169,23 +174,33 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
             import mcdc_tnt.numba_kernels.cpu as kernels
             switch_flag = 1
         
+        #print(mesh_dist_traveled_squared.size)
+        #print(mesh_dist_traveled.size)
+        
         [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = kernels.Advance(
-                p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-                num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1])
+                p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
+                num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1], max_time)
+        
         
         #print(mesh_dist_traveled)
         
         end = timer()
         print('Advance time: {0}'.format(end-start))
         #===============================================================================
-        # EVENT 2 : Still in problem
+        # EVENT 2a : Still in problem Spatially
         #===============================================================================
-        [p_pos_x, p_dir_x, p_alive, tally_left_t, tally_right_t] = kernels.StillIn(p_pos_x, p_dir_x, surface_distances, p_alive, num_part)
-        print(np.size(p_pos_x))
-        print(np.size(p_pos_x))
+        [p_alive, tally_left_t, tally_right_t] = kernels.StillInSpace(p_pos_x, surface_distances, p_alive, num_part)
         
         trans_lhs += tally_left_t
         trans_rhs += tally_right_t
+        
+        #===============================================================================
+        # EVENT 2b : Still in problem Temporally
+        #===============================================================================
+        
+        #[p_alive, tally_time_t] = kernels.StillInTime(p_time, max_time, p_alive, num_part)
+        
+        #tally_time += tally_time_t
         
         #===============================================================================
         # EVENT 3 : Sample event
@@ -276,9 +291,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     standard_deviation_flux = ((mesh_dist_traveled_squared - mesh_dist_traveled**2)/(init_particle-1))
     standard_deviation_flux = np.sqrt(standard_deviation_flux/(init_particle))
     
-    x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
+    #x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
     scalar_flux = mesh_dist_traveled/dx
-    scalar_flux/=max(scalar_flux)
+    #scalar_flux/=max(scalar_flux)
     
     return(scalar_flux, standard_deviation_flux)
     
@@ -297,7 +312,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     
     # # alive_last = alive_now
     
-
+def mem_note():
+    total_size = p_pos_x.nbytes + p_pos_y.nbytes + p_pos_z.nbytes + p_dir_z.nbytes + p_dir_x.nbytes + p_dir_y.nbytes + p_mesh_cell.nbytes + p_speed.nbytes + p_time.nbytes + p_alive.nbytes + mesh_total_xsec.nbytes + mesh_dist_traveled.nbytes + mesh_dist_traveled_squared.nbytes
+    
+    print('Total size of problem to be sent to GPU: {0} GB'.format(total_size/1e9))
 
 if __name__ == '__main__':
     x=0

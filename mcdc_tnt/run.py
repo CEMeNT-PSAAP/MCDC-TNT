@@ -51,8 +51,9 @@ def run(input_file, output_file=None, hard_targ=None):
     print()
     
     x_mesh = np.linspace(0,1,len(scalar_flux))
-
-    scalar_flux /= np.max(scalar_flux)
+    
+    
+    #scalar_flux /= np.max(scalar_flux)
     
     
     if comp_parms['output file'] == True:
@@ -83,7 +84,7 @@ def run(input_file, output_file=None, hard_targ=None):
     if comp_parms['plot flux'] == True:
         import matplotlib.pyplot as plt
         plt.figure(2)
-        plt.plot(x_mesh, scalar_flux, '-b')
+        plt.plot(x_mesh, np.sum(scalar_flux, axis=1), '-b')
         plt.title(["Scalar Flux: ",comp_parms['sim name']])
         plt.ylabel("$\phi [cm^{-2}s^{-1}]$")
         plt.xlabel("x [cm]")

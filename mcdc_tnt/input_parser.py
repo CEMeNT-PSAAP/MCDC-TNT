@@ -16,8 +16,23 @@ def SimulationSetup(input_file):
 
     """
     
+    
     with open(input_file,'r') as f:
-        inputs = yaml.safe_load(f)    
+        inputs = yaml.safe_load(f) 
+    
+    #===============================================================================
+    # Floating point accuracy settings
+    #===============================================================================
+    
+    fp_ac = inputs['floating point accuracy']
+    if fp_ac == 'float':
+        dat_type = np.float32
+    elif fp_ac == 'double':
+        dat_type = np.float64
+    else:
+        print('{0} is not an option reverting to float32 accarcy'.format(fp_ac))
+        dat_type = np.float32
+    
     #===============================================================================
     # Simulation settings (input deck)
     #===============================================================================
@@ -35,7 +50,7 @@ def SimulationSetup(input_file):
     #===============================================================================
     
     Length_slab = np.float(inputs['length of slab'])
-    surface_distances = np.array(inputs['surface locations'], dtype=float)
+    surface_distances = np.array(inputs['surface locations'], dtype=dat_type)
     
     mesh_cell_length = np.float(inputs['dx']) #dx
     N_mesh = int(Length_slab/mesh_cell_length)
@@ -60,13 +75,16 @@ def SimulationSetup(input_file):
     plot_flux = inputs['flux plot']
     plot_error = inputs['error plot']
     
+    dt = inputs['tally dt']
+    max_time = inputs['max time']
+    N_time = int(max_time/dt)
     
     if (amm == True):
         #establishing mesh
-        mesh_scat_xsec = np.zeros(N_mesh, dtype=float)
-        mesh_cap_xsec = np.zeros(N_mesh, dtype=float)
-        mesh_fis_xsec = np.zeros(N_mesh, dtype=float)
-        mesh_total_xsec = np.zeros(N_mesh, dtype=float)
+        mesh_scat_xsec = np.zeros(N_mesh, dtype=dat_type)
+        mesh_cap_xsec = np.zeros(N_mesh, dtype=dat_type)
+        mesh_fis_xsec = np.zeros(N_mesh, dtype=dat_type)
+        mesh_total_xsec = np.zeros(N_mesh, dtype=dat_type)
 
         for cell in range(N_mesh):
             mesh_scat_xsec[cell] = scat_xsec
@@ -84,7 +102,8 @@ def SimulationSetup(input_file):
                   'plot flux': plot_flux,
                   'plot error': plot_error,
                   'sim name': sim_name,
-                  'output file': make_out}
+                  'output file': make_out,
+                  'data type': dat_type}
                   
     sim_perams = {'num': num_part,
                   'L_slab': Length_slab,
@@ -92,7 +111,10 @@ def SimulationSetup(input_file):
                   'N_mesh': N_mesh,
                   'nu': nu_new_neutrons,
                   'iso': isotropic,
-                  'part_speed': particle_speed}
+                  'part_speed': particle_speed,
+                  'dt': dt,
+                  'max time':max_time,
+                  'N_time': N_time}
                    
     
     #===============================================================================

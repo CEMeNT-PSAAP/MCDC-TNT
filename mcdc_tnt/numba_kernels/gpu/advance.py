@@ -63,7 +63,6 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
                       dx, d_mesh_total_xsec, L,
                       d_p_end_trans, d_rands, num_part, d_mesh_dist_traveled, d_mesh_dist_traveled_squared, max_mesh_index, number_done)
         
-        #print(number_done)
         
         
         if (number_done == num_part):
@@ -73,8 +72,8 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
         cycle_count += 1
         #print("Number done (atomics): {0}    Number done (classical): {1}".format(d_number_done[0], number_done_2))
         
-        print("Advance Complete:......{1}%       ".format(cycle_count, int(100*number_done/num_part)), end = "\r")
-    #print()
+        print("Advance Complete:......{0}%       ({1}/{2})    cycle: {3}".format(int(100*number_done[0]/num_part), number_done[0], num_part, cycle_count), end = "\r")
+    print()
         
     p_pos_x = d_p_pos_x.copy_to_host()
     p_pos_y = d_p_pos_y.copy_to_host()
@@ -147,9 +146,8 @@ def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
                 p_pos_y[i] += p_dir_y[i]*p_dist_travled
                 p_pos_z[i] += p_dir_z[i]*p_dist_travled
                 
-                if (0 < int_cell) and (int_cell < max_mesh_index):
-                    cuda.atomic.add(mesh_dist_traveled, int_cell, p_dist_travled)
-                    cuda.atomic.add(mesh_dist_traveled_squared, int_cell, p_dist_travled**2)
+                cuda.atomic.add(mesh_dist_traveled, int_cell, p_dist_travled)
+                cuda.atomic.add(mesh_dist_traveled_squared, int_cell, p_dist_travled**2)
                 
                 p_mesh_cell[i] = cell_next
                 p_time[i]  += p_dist_travled/p_speed[i]

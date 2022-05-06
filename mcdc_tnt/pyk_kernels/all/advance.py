@@ -100,7 +100,7 @@ class DistTraveled:
         
         for i in range(self.num_part):
             cur_cell = int(self.mesh[i])
-            if (0 < cur_cell) and (cur_cell < self.max_mesh_index):
+            if (0 <= cur_cell) and (cur_cell <= self.max_mesh_index):
                 self.mesh_dist_traveled_pk[cur_cell] += self.p_dist_travled[i]
                 self.mesh_dist_traveled_squared_pk[cur_cell] += self.p_dist_travled[i]**2
                 
