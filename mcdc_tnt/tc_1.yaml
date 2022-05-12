@@ -1,11 +1,11 @@
 
 
 name: 'fissioning_slab'
-number of particles: 1e6
+number of particles: 1e4
 rng seed: 777
 particle speed: 1
 neutrons per fission: 2
-isotropic: Ture
+isotropic: True
 
 #===============================================================================
 # Test case 1: Single Reigon
@@ -20,9 +20,9 @@ hardware target: nb_cpu ## pp/nb_cpu/nb_gpu/pyk_cpu/pyk_gpu
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
-capture cross section: 0.333
+capture cross section: 0 #0.333
 scatter cross section: 0.333
-fission cross section: 0.333
+fission cross section: 0 #0.333
 mesh file: mesh_data.csv
 
 file output: True
@@ -30,8 +30,11 @@ file output: True
 error plot: True
 flux plot: True
 
-tally dt: 0.1  #time inbetween census snap shots
-max time: 1.0  #time of simulation end
+transient tally: True #to see transient behavior must be true
+tally dt: 0.5  #time inbetween census snap shots
+max time: 5.0  #time of simulation end
+
+
 
 #Issues might arries for gpus without the ability to do 64bit math
 #note that nativ python "float" is a 64bit

@@ -14,6 +14,10 @@ def run(input_file, output_file=None, hard_targ=None):
 
     """
     
+    with open("title_print.txt", "r", encoding="utf-8") as file:
+        for line in file:
+            print(line.strip())
+    
     [comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_xsec, mesh_total_xsec, surface_distances] = mcdc_tnt.SimulationSetup(input_file)
     
     if hard_targ != None:
@@ -52,7 +56,7 @@ def run(input_file, output_file=None, hard_targ=None):
     
     x_mesh = np.linspace(0,1,len(scalar_flux))
     
-    
+    #print(scalar_flux)
     #scalar_flux /= np.max(scalar_flux)
     
     
@@ -80,14 +84,18 @@ def run(input_file, output_file=None, hard_targ=None):
         plt.savefig('error.png', dpi=500, facecolor='w', edgecolor='k',orientation='portrait')
         print('Error figure printed to error.png')
         print()
-        
+        #np.sum(scalar_flux, axis=1)
     if comp_parms['plot flux'] == True:
         import matplotlib.pyplot as plt
         plt.figure(2)
-        plt.plot(x_mesh, np.sum(scalar_flux, axis=1), '-b')
+        #print(scalar_flux.shape)
+        plt.plot(x_mesh, scalar_flux[:,:], '-b')
+        plt.ylim([0,2])
+        plt.grid(True)
         plt.title(["Scalar Flux: ",comp_parms['sim name']])
         plt.ylabel("$\phi [cm^{-2}s^{-1}]$")
         plt.xlabel("x [cm]")
+        
         plt.savefig('sflux.png', dpi=500, facecolor='w', edgecolor='k',orientation='portrait')  
         print('Flux figure printed to sflux.png')
         print()

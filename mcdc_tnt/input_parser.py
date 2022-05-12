@@ -45,10 +45,6 @@ def SimulationSetup(input_file):
     nu_new_neutrons = int(inputs['neutrons per fission']) #neutrons/fission
     isotropic = inputs['isotropic'] #isotropic
     
-    #===============================================================================
-    # Test case 1: Single Reigon
-    #===============================================================================
-    
     Length_slab = np.float(inputs['length of slab'])
     surface_distances = np.array(inputs['surface locations'], dtype=dat_type)
     
@@ -78,6 +74,8 @@ def SimulationSetup(input_file):
     dt = inputs['tally dt']
     max_time = inputs['max time']
     N_time = int(max_time/dt)
+    
+    trans_tally = inputs['transient tally']
     
     if (amm == True):
         #establishing mesh
@@ -114,7 +112,8 @@ def SimulationSetup(input_file):
                   'part_speed': particle_speed,
                   'dt': dt,
                   'max time':max_time,
-                  'N_time': N_time}
+                  'N_time': N_time,
+                  'trans_tally': trans_tally}
                    
     
     #===============================================================================

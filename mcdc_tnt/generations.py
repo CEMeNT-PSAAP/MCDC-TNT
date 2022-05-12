@@ -68,6 +68,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     dt = sim_perams['dt']
     max_time = sim_perams['max time']
     N_time = sim_perams['N_time']
+    trans_tally = sim_perams['trans_tally']
     
     #===============================================================================
     # Initial setups
@@ -91,9 +92,13 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     
     # last Ntime itter is for all post times in the particle generation scheem
     
-    mesh_dist_traveled = np.zeros([N_mesh, N_time], dtype=dat_type)
-    mesh_dist_traveled_squared = np.zeros([N_mesh, N_time], dtype=dat_type)
-    
+    if trans_tally == True:
+        mesh_dist_traveled = np.zeros([N_mesh, N_time], dtype=dat_type)
+        mesh_dist_traveled_squared = np.zeros([N_mesh, N_time], dtype=dat_type)
+        print('Transient mesh generated')
+    else:
+        mesh_dist_traveled = np.zeros([N_mesh], dtype=dat_type)
+        mesh_dist_traveled_squared = np.zeros([N_mesh], dtype=dat_type)
     
     #===============================================================================
     # Allocate particle phase space
@@ -198,9 +203,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         # EVENT 2b : Still in problem Temporally
         #===============================================================================
         
-        #[p_alive, tally_time_t] = kernels.StillInTime(p_time, max_time, p_alive, num_part)
+        [p_alive, tally_time_t] = kernels.StillInTime(p_time, max_time, p_alive, num_part)
         
-        #tally_time += tally_time_t
+        tally_time += tally_time_t
         
         #===============================================================================
         # EVENT 3 : Sample event
@@ -281,6 +286,14 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         
         end_o = timer()
         print('Overall time to completion: {0}'.format(end_o-start_o))
+        print('Average time stamp of particles {0}'.format(np.mean(p_time[:num_part])))
+        print(fis_count)
+        print(scat_count)
+        print(cap_count)
+        print(particles_added_fission)
+        print(trans_lhs)
+        print(trans_rhs)
+        print(tally_time)
     #===============================================================================
     # Step Output
     #===============================================================================

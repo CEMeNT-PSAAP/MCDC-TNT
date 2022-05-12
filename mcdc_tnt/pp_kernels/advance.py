@@ -61,47 +61,53 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
         while (flag == 1):
             if (p_pos_x[i] < 0): #gone rhs
                 flag = 0
-                
-                
             elif (p_pos_x[i] >= L): #gone lhs
                 flag = 0
-                
             elif (p_time[i] >= max_time):
                 flag = 0
                 
             else:
                 dist_sampled = -math.log(rands[i]) / mesh_total_xsec[p_mesh_cell[i]]
                 
-                x_loc = (p_dir_x[i] * dist_sampled) + p_pos_x[i]
                 LB = p_mesh_cell[i] * dx
                 RB = LB + dx
+                
                 TB = (p_time_cell[i]+1) * dt
                 
+                dist_TB = TB * p_speed[i]
+                
+                space_cell_inc: int = 0
+                if (p_dir_x[i] < 0):
+                    dist_B = (LB - p_pos_x[i])/p_dir_x[i] + kicker
+                    space_cell_inc = -1
+                else:
+                    dist_B = (RB - p_pos_x[i])/p_dir_x[i] + kicker
+                    space_cell_inc = 1
+                
+                dist_traveled = min(dist_TB, dist_B, dist_sampled)
+                
+                if dist_traveled > 10:
+                    print('oh shoot')
+                    
                 increment_time_cell: int = 0
                 
-                if (x_loc < LB):        #move partilce into cell at left
-                    dist_traveled = (LB - p_pos_x[i])/p_dir_x[i] + kicker
-                    cell_next = p_mesh_cell[i] -1
-                   
-                elif (x_loc > RB):      #move particle into cell at right
-                    dist_traveled = (RB - p_pos_x[i])/p_dir_x[i] + kicker
-                    cell_next = p_mesh_cell[i] +1
+                if   dist_traveled == dist_B:      #move partilce into cell at left
+                    cell_next = p_mesh_cell[i] + space_cell_inc
                 
-                else:                   #move particle in cell in time step
-                    dist_traveled = dist_sampled
+                elif dist_traveled == dist_sampled: #move particle in cell in time step
                     flag = 0
                     cell_next = p_mesh_cell[i]
                 
-                
-                if dist_traveled/p_speed[i] > TB:
-                    dist_traveled = (TB * p_speed[i]) / abs(p_dir_x[i]) + kicker
+                elif dist_traveled == dist_TB:
                     increment_time_cell = 1
                     cell_next = p_mesh_cell[i]
-                    flag = 1
                     
                 p_pos_x[i] += p_dir_x[i]*dist_traveled
                 p_pos_y[i] += p_dir_y[i]*dist_traveled
                 p_pos_z[i] += p_dir_z[i]*dist_traveled
+                
+                #mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
+                #mesh_dist_traveled_squared[p_mesh_cell[i]] += dist_traveled**2
                 
                 mesh_dist_traveled[p_mesh_cell[i], p_time_cell[i]] += dist_traveled
                 mesh_dist_traveled_squared[p_mesh_cell[i], p_time_cell[i]] += dist_traveled**2
@@ -111,6 +117,9 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                 #advance particle clock
                 p_time[i]  += dist_traveled/p_speed[i]
                 p_time_cell[i] += increment_time_cell
+                
+        print("Advance Complete:......{0}%".format(int(100*i/num_part)), end = "\r")
+    print()
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
 
@@ -119,17 +128,17 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
 def StillInSpace(p_pos_x, surface_distances, p_alive, num_part):
     tally_left: int = 0
     tally_right: int = 0
-    L = surface_distances[len(surface_distances)-1]
+    L = surface_distances[-1]
     for i in range(num_part):
         #exit at left
-        if p_pos_x[i] <= surface_distances[0]:
+        if p_pos_x[i] <= 0:
             tally_left += 1
-            p_alive[i] = False
+            p_alive[i] = 0
         
         #reflected right
         elif p_pos_x[i] >= L:
             tally_right += 1
-            p_alive[i] = False
+            p_alive[i] = 0
             #p_alive[i] = False
             
     return(p_alive, tally_left, tally_right)
