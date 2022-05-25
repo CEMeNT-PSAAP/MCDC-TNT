@@ -7,8 +7,9 @@ Date: Dec 2nd 2021
 
 import math
 import numpy as np
+import numba as nb
 
-
+#@nb.njit
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L, max_time):
     """
@@ -55,8 +56,9 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     """
     kicker = 1e-10
     for i in range(num_part):
-        
+        #print(i)
         flag = 1
+        cycle_count = 0
         rands = np.random.random(num_part).astype(np.float32)
         while (flag == 1):
             if (p_pos_x[i] < 0): #gone rhs
@@ -72,23 +74,25 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                 LB = p_mesh_cell[i] * dx
                 RB = LB + dx
                 
-                TB = (p_time_cell[i]+1) * dt
-                
-                dist_TB = TB * p_speed[i]
+                TB = ((p_time_cell[i]+1) * dt) - p_time[i]
+                #if TB < 0:
+                #    print('TIME WAS NEGAITIVE')
+                    
+                dist_TB = TB * p_speed[i] + kicker
                 
                 space_cell_inc: int = 0
                 if (p_dir_x[i] < 0):
-                    dist_B = (LB - p_pos_x[i])/p_dir_x[i] + kicker
+                    dist_B = ((LB - p_pos_x[i])/p_dir_x[i]) + kicker
                     space_cell_inc = -1
                 else:
-                    dist_B = (RB - p_pos_x[i])/p_dir_x[i] + kicker
+                    dist_B = ((RB - p_pos_x[i])/p_dir_x[i]) + kicker
                     space_cell_inc = 1
                 
-                dist_traveled = min(dist_TB, dist_B, dist_sampled)
                 
-                if dist_traveled > 10:
-                    print('oh shoot')
-                    
+                dist_traveled = min(dist_TB, dist_B, dist_sampled)
+                 
+                #if dist_traveled < 0:
+                #    print('WARNING DISTANCE WAS LESS THAN ZERO')
                 increment_time_cell: int = 0
                 
                 if   dist_traveled == dist_B:      #move partilce into cell at left
@@ -99,8 +103,9 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                     cell_next = p_mesh_cell[i]
                 
                 elif dist_traveled == dist_TB:
-                    increment_time_cell = 1
+                    p_time_cell[i] += 1
                     cell_next = p_mesh_cell[i]
+                    increment_time_cell = 1
                     
                 p_pos_x[i] += p_dir_x[i]*dist_traveled
                 p_pos_y[i] += p_dir_y[i]*dist_traveled
@@ -108,22 +113,40 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                 
                 #mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
                 #mesh_dist_traveled_squared[p_mesh_cell[i]] += dist_traveled**2
-                
+                p_time_cell[i] = int(p_time[i]/dt)
                 mesh_dist_traveled[p_mesh_cell[i], p_time_cell[i]] += dist_traveled
                 mesh_dist_traveled_squared[p_mesh_cell[i], p_time_cell[i]] += dist_traveled**2
                 
                 p_mesh_cell[i] = cell_next
                 
                 #advance particle clock
-                p_time[i]  += dist_traveled/p_speed[i]
-                p_time_cell[i] += increment_time_cell
+                p_time[i]  += dist_traveled/p_speed[i] + kicker
                 
-        print("Advance Complete:......{0}%".format(int(100*i/num_part)), end = "\r")
-    print()
+                #p_time_cell[i] += int(p_time[i]/dt)
+                
+                calc_cell = int(p_time[i]/dt)
+                '''
+                if p_time_cell[i] != calc_cell:
+                    print('Cells did not match for particle {0}'.format(i))
+                    print('Calced cell:      {0}'.format(calc_cell))
+                    print('Actual listed:    {0}'.format(p_time_cell[i]))
+                    print('Particle clock:   {0}'.format(p_time[i]))
+                    print('Distance travled: {0}'.format(dist_traveled))
+                    print('dist_TB:          {0}'.format(dist_TB))
+                    print('dist_B:           {0}'.format(dist_B))
+                    print('dist_sampled:     {0}'.format(dist_sampled))
+                    print('cycle_count:      {0}'.format(cycle_count))
+                    if (increment_time_cell == 1):
+                        print('Should have been the time bound')
+                    print()
+                '''
+                cycle_count += 1
+                
+        #print("Advance Complete:......{0}%".format(int(100*i/num_part)), end = "\r")
+    #print()
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
 
-    
 
 def StillInSpace(p_pos_x, surface_distances, p_alive, num_part):
     tally_left: int = 0
@@ -149,7 +172,7 @@ def StillInTime(p_time, max_time, p_alive, num_part):
     tally_time: int = 0
     
     for i in range(num_part):
-        if p_time[i] > max_time:
+        if p_time[i] >= max_time:
             p_alive[i] = 0
             tally_time +=1
             

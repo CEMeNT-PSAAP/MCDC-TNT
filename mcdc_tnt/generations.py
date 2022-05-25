@@ -104,7 +104,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     # Allocate particle phase space
     #===============================================================================
     
-    phase_parts = int(1.5*num_part) #see note about data storage
+    phase_parts = int(10*num_part) #see note about data storage
     
     # Position
     p_pos_x = np.zeros(phase_parts, dtype=dat_type)
@@ -157,6 +157,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     trans_rhs = 0
     tally_time = 0
     switch_flag = 0
+    have_lived = num_part
+    total_fissed = 0
     while alive > 100:
         print("")
         print("===============================================================================")
@@ -238,17 +240,19 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         # print("")
         # print("max index {0}".format(num_part))
         # print("")
-        
-        rands = np.random.random(fis_count * nu_new_neutrons * 2) #exact number of rands known
+        #fis_count * nu_new_neutrons * 2
+        rands = np.random.random(fis_count * 3 * 2) #exact number of rands known
         #2 is for number reqired per new neutron
         
         [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
          p_time, p_alive, particles_added_fission] = kernels.FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                                   p_dir_y, p_dir_z, p_dir_x, p_speed, 
-                                                  p_time, p_alive, fis_count, nu_new_neutrons, 
+                                                  p_time, p_time_cell, p_alive, fis_count, nu_new_neutrons, 
                                                   fission_event_index, num_part, particle_speed, rands)
     
         num_part += particles_added_fission
+        have_lived += particles_added_fission
+        total_fissed += fis_count
         # print("")
         # print("max index {0}".format(num_part))
                                                   
@@ -273,7 +277,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, 
          p_time, p_alive, kept] = kernels.BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                                    p_dir_y, p_dir_z, p_dir_x, p_speed, 
-                                                   p_time, p_alive, num_part)
+                                                   p_time, p_time_cell, p_alive, num_part)
                                                    
         num_part = kept
         alive = num_part
@@ -287,13 +291,16 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         end_o = timer()
         print('Overall time to completion: {0}'.format(end_o-start_o))
         print('Average time stamp of particles {0}'.format(np.mean(p_time[:num_part])))
-        print(fis_count)
-        print(scat_count)
-        print(cap_count)
-        print(particles_added_fission)
-        print(trans_lhs)
-        print(trans_rhs)
-        print(tally_time)
+        print('Fissions            {0}'.format(fis_count))
+        print('Scatters            {0}'.format(scat_count))
+        print('Captures            {0}'.format(cap_count))
+        print('Fis Particles added {0}'.format(particles_added_fission))
+        print('nu from last cycle  {0}'.format(particles_added_fission/fis_count))
+        print('Leaked on left      {0}'.format(trans_lhs))
+        print('Leaked on right     {0}'.format(trans_rhs))
+        print('Hit end of time     {0}'.format(tally_time))
+        print('have_lived          {0}'.format(have_lived))
+        print('total_fissed        {0}'.format(total_fissed))
     #===============================================================================
     # Step Output
     #===============================================================================

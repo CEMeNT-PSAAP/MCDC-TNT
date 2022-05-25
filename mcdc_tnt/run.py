@@ -3,6 +3,13 @@ import numpy as np
 import sys
 import argparse
 import mcdc_tnt
+import matplotlib.pyplot as plt
+
+def flatLinePlot(x, y, lab):
+    for i in range(y.size):
+        xx = x[i:i+2]
+        yy = [y[i], y[i]]
+        plt.plot(xx, yy, label=lab)
 
 def run(input_file, output_file=None, hard_targ=None):
     """
@@ -54,7 +61,8 @@ def run(input_file, output_file=None, hard_targ=None):
     print('Simulation complete')
     print()
     
-    x_mesh = np.linspace(0,1,len(scalar_flux))
+    x_mesh = np.linspace(0,sim_perams['L_slab'],len(scalar_flux))
+    X = np.linspace(0, sim_perams['L_slab'], int(scalar_flux.size+1))
     
     #print(scalar_flux)
     #scalar_flux /= np.max(scalar_flux)
@@ -88,15 +96,18 @@ def run(input_file, output_file=None, hard_targ=None):
     if comp_parms['plot flux'] == True:
         import matplotlib.pyplot as plt
         plt.figure(2)
-        #print(scalar_flux.shape)
-        plt.plot(x_mesh, scalar_flux[:,:], '-b')
-        plt.ylim([0,2])
+        print(scalar_flux.shape)
+        for i in range(scalar_flux.shape[1]):
+            plt.plot(x_mesh, scalar_flux[:, i], label=i)
+            #flatLinePlot(X, scalar_flux[:, i], i)
+        #plt.ylim([0,2])
         plt.grid(True)
         plt.title(["Scalar Flux: ",comp_parms['sim name']])
         plt.ylabel("$\phi [cm^{-2}s^{-1}]$")
         plt.xlabel("x [cm]")
+        plt.legend(loc='right')
         
-        plt.savefig('sflux.png', dpi=500, facecolor='w', edgecolor='k',orientation='portrait')  
+        plt.savefig('sflux.pdf', dpi=500, facecolor='w', edgecolor='k',orientation='portrait')  
         print('Flux figure printed to sflux.png')
         print()
         
