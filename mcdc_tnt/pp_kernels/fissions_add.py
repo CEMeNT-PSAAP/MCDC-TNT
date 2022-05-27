@@ -53,9 +53,9 @@ def FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_
     """
     k=0 #index for fission temp vectors
     for i in range(fis_count):
-        nu_sampled = 1
-        if np.random.random() < .1:
-            nu_sampled = 2
+        nu_sampled = 2
+        if np.random.random() < .3:
+            nu_sampled = 3
         
         for j in range(nu_sampled):
             # Position

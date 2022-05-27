@@ -9,7 +9,7 @@ import math
 import numpy as np
 import numba as nb
 
-#@nb.njit
+@nb.njit
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L, max_time):
     """

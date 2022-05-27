@@ -52,14 +52,15 @@ def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z
         # Position
         
         #find mesh cell birth based on provided pdf
-        xi = np.random.random()
-        cell = 0
-        summer = 0
-        while (summer < xi):
-            summer += meshwise_fission_pdf[cell]
-            cell += 1
+        #xi = np.random.random()
+        #cell = 0
+        #summer = 0
+        #while (summer < xi):
+        #    summer += meshwise_fission_pdf[cell]
+        #    cell += 1
                 
-        cell -=1
+        #cell -=1+
+        cell = int(meshwise_fission_pdf.size/2)
         p_mesh_cell[i] = cell
         
         #sample birth location within cell

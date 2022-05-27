@@ -61,27 +61,29 @@ def run(input_file, output_file=None, hard_targ=None):
     print('Simulation complete')
     print()
     
-    x_mesh = np.linspace(0,sim_perams['L_slab'],len(scalar_flux))
-    X = np.linspace(0, sim_perams['L_slab'], int(scalar_flux.size+1))
+    x_mesh = np.linspace(0,sim_perams['L_slab'],80)#len(scalar_flux))
+    X = np.linspace(0, sim_perams['L_slab'], 80+1)#int(scalar_flux.size+1))
     
     #print(scalar_flux)
     #scalar_flux /= np.max(scalar_flux)
-    
+    np.set_printoptions(threshold=np.inf)   
     
     if comp_parms['output file'] == True:
         if (output_file == None):
            output_file = 'output.out'
         with open(output_file, 'w') as f:
             print(comp_parms['sim name'],'output file', file=f)
-            print('cell, center x, normalized scalar flux, associated error', file=f)
-            for i in range(len(scalar_flux)):
-                print('{0},{1},{2},{3}'.format(i, x_mesh[i], scalar_flux[i], standard_deviation_flux[i]), file=f) 
+            for i in range(scalar_flux.shape[1]):
+                print((scalar_flux[:,i]), file=f)
+            #print('cell, center x, normalized scalar flux, associated error', file=f)
+            #for i in range(len(scalar_flux)):
+            #    print('{0},{1},{2},{3}'.format(i, x_mesh[i], scalar_flux[i], standard_deviation_flux[i]), file=f) 
         print('Output written to',output_file)
         print()
     else:
         print('No file outputs requested, Simulation Complete')
     
-    
+    '''
     if comp_parms['plot error'] == True:
         import matplotlib.pyplot as plt
         plt.figure(1)
@@ -93,12 +95,29 @@ def run(input_file, output_file=None, hard_targ=None):
         print('Error figure printed to error.png')
         print()
         #np.sum(scalar_flux, axis=1)
+        '''
+    #print(scalar_flux)
+    #print()
+    #print()
+    
+    #print(scalar_flux[0,:])
+    #print()
+    #print()
+    #print(scalar_flux[:,0])
+    
+    import matplotlib.pyplot as plt
+    plt.figure(2)
+    for i in range(scalar_flux.shape[0]):
+        plt.plot(x_mesh, scalar_flux[i,:], label=i)
+    plt.show()
+    
+    '''
     if comp_parms['plot flux'] == True:
         import matplotlib.pyplot as plt
         plt.figure(2)
         print(scalar_flux.shape)
         for i in range(scalar_flux.shape[1]):
-            plt.plot(x_mesh, scalar_flux[:, i], label=i)
+            plt.plot(x_mesh, scalar_flux[:,i], label=i)
             #flatLinePlot(X, scalar_flux[:, i], i)
         #plt.ylim([0,2])
         plt.grid(True)
@@ -110,7 +129,18 @@ def run(input_file, output_file=None, hard_targ=None):
         plt.savefig('sflux.pdf', dpi=500, facecolor='w', edgecolor='k',orientation='portrait')  
         print('Flux figure printed to sflux.png')
         print()
-        
+    '''
+    #print(scalar_flux.shape)
+    #print()
+    
+    
+    #plt.figure(3)
+    #plt.plot(x_mesh, scalar_flux[:, 0])
+    #plt.show()
+    
+    #for i in range(scalar_flux.shape[1]):
+    #    print(sum(scalar_flux[:, i]))
+    #print()
     
     
 if __name__ == "__main__":

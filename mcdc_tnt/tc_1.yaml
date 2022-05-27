@@ -1,7 +1,7 @@
 
 
 name: 'fissioning_slab'
-number of particles: 1e4
+number of particles: 1e5
 rng seed: 777
 particle speed: 1
 neutrons per fission: 2.3
@@ -11,18 +11,18 @@ isotropic: True
 # Test case 1: Single Reigon
 #===============================================================================
 
-length of slab: 42.0
+length of slab: 40.0
 surface locations: [0,40]
 
-dx: 1
+dx: .5
 
-hardware target: pp ## pp/nb_cpu/nb_gpu/pyk_cpu/pyk_gpu
+hardware target: nb_gpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
-capture cross section: 0 #0.333
-scatter cross section: 0 #0.333
-fission cross section: 1 #0.666
+capture cross section: 0
+scatter cross section: 0
+fission cross section: 1.1 #0.666
 mesh file: mesh_data.csv
 
 file output: True

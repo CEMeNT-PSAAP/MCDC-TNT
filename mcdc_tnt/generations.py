@@ -47,17 +47,23 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     if comp_parms['hard_targ'] == 'pp':
         import mcdc_tnt.pp_kernels as kernels
         
-    elif comp_parms['hard_targ'] == 'nb_cpu':
-        print('loading cpu')
-        import mcdc_tnt.numba_kernels.cpu as kernels
+    elif comp_parms['hard_targ'][:2] == 'nb':
+        import mcdc_tnt.numba_kernels as kernels
         #from mcdc_tnt.numba_kernels.warmup import WarmUp
         #WarmUp(comp_parms['p_warmup']) #warmup kernels
         
-    elif comp_parms['hard_targ'] == 'nb_gpu':
-        print('loading gpu')
-        import mcdc_tnt.numba_kernels.gpu as kernels
-        #from mcdc_tnt.numba_kernels.warmup import WarmUp
-        #WarmUp(comp_parms['p_warmup']) #warmup kernels
+        if comp_parms['hard_targ'] == 'nb_cpu':
+            print('loading gpu')
+            import mcdc_tnt.numba_kernels.cpu as target
+        
+        elif comp_parms['hard_targ'] == 'nb_pyomp':
+            print('loading PyOMP')
+            import mcdc_tnt.numba_kernels.omp as target
+        
+        elif comp_parms['hard_targ'] == 'nb_gpu':
+            print('loading gpu')
+            import mcdc_tnt.numba_kernels.cuda as target
+    
     
     N_mesh = sim_perams['N_mesh']
     nu_new_neutrons = sim_perams['nu']
@@ -104,7 +110,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     # Allocate particle phase space
     #===============================================================================
     
-    phase_parts = int(10*num_part) #see note about data storage
+    phase_parts = int(150*num_part) #see note about data storage
     
     # Position
     p_pos_x = np.zeros(phase_parts, dtype=dat_type)
@@ -134,7 +140,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     fission_event_index = np.zeros(phase_parts, dtype=np.int32)
     
     
-    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, 
+    [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
     p_alive] = kernels.SourceParticles(p_pos_x, p_pos_y,
                                                       p_pos_z, p_mesh_cell, dx,
                                                       p_dir_y, p_dir_z, p_dir_x,
@@ -159,6 +165,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     switch_flag = 0
     have_lived = num_part
     total_fissed = 0
+    
+    
+    
     while alive > 100:
         print("")
         print("===============================================================================")
@@ -176,20 +185,29 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         alive_cycle_start = num_part
         
         start = timer()
-        if (comp_parms['hard_targ'] == 'nb_gpu') and (num_part < 50000) and (switch_flag == 0):
-            print('Switching to CPU')
-            import mcdc_tnt.numba_kernels.cpu as kernels
-            switch_flag = 1
+        #if (comp_parms['hard_targ'] == 'nb_gpu') and (num_part < 81) and (switch_flag == 0):
+        #    print('Switching to CPU')
+        #    import mcdc_tnt.numba_kernels.cpu as kernels
+        #    switch_flag = 1
         
         #print(mesh_dist_traveled_squared.size)
         #print(mesh_dist_traveled.size)
+        p_time_i = p_time.copy()
         
-        [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = kernels.Advance(
+        [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared] = target.Advance(
                 p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
                 num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1], max_time)
         
-        
         #print(mesh_dist_traveled)
+        a = p_time_i[:num_part] < p_time[:num_part]
+        if all(p_time_i[:num_part] <= p_time[:num_part]) == False:
+            print('Time did not move forward!')
+            for i in range(num_part):
+                if a[i] == False:
+                    print('{0}    {1}    {2}    {3}    {4}    {5}      {6}'.format(i, p_time_i[i], p_time[i], p_time_cell[i], p_pos_x[i], a[i], p_dir_x[i]))
+            print()
+            print()
+            return()
         
         end = timer()
         print('Advance time: {0}'.format(end-start))
@@ -314,6 +332,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     #x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
     scalar_flux = mesh_dist_traveled/dx
     #scalar_flux/=max(scalar_flux)
+    
+    #if comp_parms['hard_targ'] == 'nb_gpu':
+    #    scalar_flux = np.transpose(scalar_flux)
+    #    standard_deviation_flux = np.transpose(standard_deviation_flux)
     
     return(scalar_flux, standard_deviation_flux)
     

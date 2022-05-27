@@ -9,7 +9,7 @@ Date: Dec 2nd 2021
 import numba as nb
 
 @nb.jit(nopython=True)
-def BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part):
+def BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, p_alive, num_part):
     """
     Removes particles that died in the last round of particle transport by
     rewriting there postiion with the alive ones
@@ -69,6 +69,7 @@ def BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p
             
             # Time
             p_time[kept] = p_time[i]
+            p_time_cell[kept] = p_time_cell[i]
             
             # Regions
             p_mesh_cell[kept] = p_mesh_cell[i]

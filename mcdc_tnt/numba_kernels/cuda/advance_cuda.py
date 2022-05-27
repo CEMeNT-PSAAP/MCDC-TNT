@@ -9,20 +9,35 @@ import math
 import numpy as np
 import numba as nb
 from numba import cuda
-from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform_float32
 
 #@nb.jit(nopython=True)
 #@profile
-def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
-    
-    
+def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
+            num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L, max_time):
     
     p_end_trans = np.zeros(num_part, dtype=int)
     end_flag = 0
     max_mesh_index = len(mesh_total_xsec)-1
+    n_space: int = 80 #mesh_dist_traveled.shape[1]
+    n_time: int = 20 #mesh_dist_traveled.shape[0]
+    
+    print(n_space)
+    print(n_time)
+    
+    #print(mesh_dist_traveled)
     
     cycle_count = 0
+    
+    #get mesh into row dominated matricies
+    dist = mesh_dist_traveled.reshape(-1) #Array2Vec(mesh_dist_traveled)
+    #print()
+    #print()
+    #print('*****before******')
+    #for i in range(30, 50, 1):
+    #    print(dist[i])
+    #print()
+    #print()
+    dist_sq = mesh_dist_traveled.reshape(-1) #Array2Vec(mesh_dist_traveled_squared)
     
     #copy data to cuda device
     d_p_pos_x = cuda.to_device(p_pos_x)
@@ -34,18 +49,15 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     d_p_mesh_cell = cuda.to_device(p_mesh_cell)
     d_p_speed = cuda.to_device(p_speed)
     d_p_time = cuda.to_device(p_time)
+    d_p_time_cell = cuda.to_device(p_time_cell)
     d_p_end_trans = cuda.to_device(p_end_trans)
     d_mesh_total_xsec = cuda.to_device(mesh_total_xsec)
     
-    d_mesh_dist_traveled = cuda.to_device(mesh_dist_traveled)
-    d_mesh_dist_traveled_squared = cuda.to_device(mesh_dist_traveled_squared)
-    
-    
+    d_mesh_dist_traveled = cuda.to_device(dist)
+    d_mesh_dist_traveled_squared = cuda.to_device(dist_sq)
     
     threadsperblock = 32
     blockspergrid = (num_part + (threadsperblock - 1)) // threadsperblock
-    
-    d_rands = create_xoroshiro128p_states(threadsperblock * blockspergrid, seed=1)
     
     summer = num_part
     
@@ -54,20 +66,17 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     
     while end_flag == 0 and cycle_count < 1000:
         #allocate randoms
-        #rands = rands_nb(num_part)
-        #d_rands = cuda.to_device(rands)
+        rands = np.random.random(num_part).astype(np.float32)
+        d_rands = cuda.to_device(rands)
 
         AdvanceCuda[blockspergrid, threadsperblock](d_p_pos_x, d_p_pos_y, d_p_pos_z,
                       d_p_dir_y, d_p_dir_z, d_p_dir_x, 
-                      d_p_mesh_cell, d_p_speed, d_p_time,  
-                      dx, d_mesh_total_xsec, L,
+                      d_p_mesh_cell, d_p_speed, d_p_time, d_p_time_cell,
+                      dx, dt, n_space, d_mesh_total_xsec, L, max_time,
                       d_p_end_trans, d_rands, num_part, d_mesh_dist_traveled, d_mesh_dist_traveled_squared, max_mesh_index, number_done)
-        
-        
         
         if (number_done == num_part):
             end_flag = 1
-        
         
         cycle_count += 1
         #print("Number done (atomics): {0}    Number done (classical): {1}".format(d_number_done[0], number_done_2))
@@ -82,26 +91,51 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     p_dir_z = d_p_dir_z.copy_to_host()
     p_dir_x = d_p_dir_x.copy_to_host()
     p_speed = d_p_speed.copy_to_host()
-    p_time = d_p_time.copy_to_host()
+    p_time  = d_p_time.copy_to_host()
+    p_time_cell  = d_p_time_cell.copy_to_host()
     
     p_mesh_cell = d_p_mesh_cell.copy_to_host()
     
-    mesh_dist_traveled = d_mesh_dist_traveled.copy_to_host()
-    mesh_dist_traveled_squared = d_mesh_dist_traveled_squared.copy_to_host()
+    #print()
+    #print()
+    #print('*****after******')
+    dist = d_mesh_dist_traveled.copy_to_host()
+    #for i in range(dist.size):
+    #    print(dist[i])
+    #print()
+    #print()
+    
+    dist_sq = d_mesh_dist_traveled_squared.copy_to_host()
+    
+    mesh_dist_traveled = dist.reshape(n_time, n_space) #Vec2Array(dist, n_time, n_space)
+    mesh_dist_traveled_squared = dist_sq.reshape(n_time, n_space) #Vec2Array(dist_sq, n_time, n_space)
     
     
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
+    #print(mesh_dist_traveled)
+    
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared)
 
 
-#@nb.jit(nopython=True)
-#def rands_nb(n):
-#    return np.random.rand(n)
+def Array2Vec(array):
+    #returns a row dominat matrix [rows, cols] = rows*i + cols
+    vec = np.zeros(array.size)
+    n_rows = array.shape[0]
+    n_cols = array.shape[1]
+    for i in range(n_rows):
+        vec[i*n_cols:(i+1)*n_cols] = array[i,:]
+    return(vec)
+        
+def Vec2Array(vec, n_rows, n_cols):
+    array = np.zeros([n_rows, n_cols])
+    for i in range(n_rows):
+        array[i,:] = vec[i*n_cols:(i+1)*n_cols] 
+    return(array)
 
 @cuda.jit
 def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
                   p_dir_y, p_dir_z, p_dir_x, 
-                  p_mesh_cell, p_speed, p_time,  
-                  dx, mesh_total_xsec, L,
+                  p_mesh_cell, p_speed, p_time, p_time_cell,
+                  dx, dt, n_mesh, mesh_total_xsec, L, max_time,
                   p_end_trans, rands, num_part, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, num_dead):
     
     
@@ -109,10 +143,9 @@ def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
     kicker = 1e-10
     i = cuda.grid(1)
     int_cell: int = p_mesh_cell[i]
-    p_dist_travled: float = 0.0
+    p_dist_traveled: float = 0.0
     
     if (i < num_part):
-    
         if (p_end_trans[i] == 0):
             if (p_pos_x[i] < 0): #exited rhs
                 p_end_trans[i] = 1
@@ -120,59 +153,54 @@ def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
             elif (p_pos_x[i] >= L): #exited lhs
                 p_end_trans[i] = 1
                 cuda.atomic.add(num_dead, 0, 1)
+            elif(p_time[i] >= max_time):
+                p_end_trans[i] = 1
+                cuda.atomic.add(num_dead, 0, 1)
                 
             else:
-                dist = -math.log(xoroshiro128p_uniform_float32(rands,i)) / mesh_total_xsec[p_mesh_cell[i]]
+                dist_sampled = -math.log(rands[i]) / mesh_total_xsec[p_mesh_cell[i]]
                 
-                x_loc = (p_dir_x[i] * dist) + p_pos_x[i]
                 LB = p_mesh_cell[i] * dx
                 RB = LB + dx
+                TB: float = float(p_time_cell[i]+1)*dt - p_time[i]
                 
-                if (x_loc < LB):        #move partilce into cell at left
-                    p_dist_travled = (LB - p_pos_x[i])/p_dir_x[i] + kicker
-                    cell_next = p_mesh_cell[i] - 1
-                   
-                elif (x_loc > RB):      #move particle into cell at right
-                    p_dist_travled = (RB - p_pos_x[i])/p_dir_x[i] + kicker
-                    cell_next = p_mesh_cell[i] + 1
-                    
-                else:                   #move particle in cell
-                    p_dist_travled = dist
+                dist_TB: float = TB * p_speed[i] + kicker
+                dist_B: float
+                
+                space_cell_inc: int = 0
+                if (p_dir_x[i] < 0):
+                    dist_B = ((LB - p_pos_x[i])/p_dir_x[i]) + kicker
+                    space_cell_inc = -1
+                else:
+                    dist_B = ((RB - p_pos_x[i])/p_dir_x[i]) + kicker
+                    space_cell_inc = 1
+                
+                p_dist_traveled = min(dist_TB, dist_B, dist_sampled)
+                
+                if   p_dist_traveled == dist_B:      #move partilce into cell at left
+                    cell_next = p_mesh_cell[i] + space_cell_inc
+            
+                elif p_dist_traveled == dist_sampled: #move particle in cell in time step
                     p_end_trans[i] = 1
+                    cell_next = p_mesh_cell[i]
                     cuda.atomic.add(num_dead, 0, 1)
+                
+                elif p_dist_traveled == dist_TB:
+                    increment_time_cell = 1
                     cell_next = p_mesh_cell[i]
                     
-                p_pos_x[i] += p_dir_x[i]*p_dist_travled
-                p_pos_y[i] += p_dir_y[i]*p_dist_travled
-                p_pos_z[i] += p_dir_z[i]*p_dist_travled
+                p_pos_x[i] += p_dir_x[i]*p_dist_traveled
+                p_pos_y[i] += p_dir_y[i]*p_dist_traveled
+                p_pos_z[i] += p_dir_z[i]*p_dist_traveled
                 
-                cuda.atomic.add(mesh_dist_traveled, int_cell, p_dist_travled)
-                cuda.atomic.add(mesh_dist_traveled_squared, int_cell, p_dist_travled**2)
+                mesh_cell: int = int_cell + (p_time_cell[i] * n_mesh)
+                cuda.atomic.add(mesh_dist_traveled, mesh_cell, p_dist_traveled)
+                cuda.atomic.add(mesh_dist_traveled_squared, mesh_cell, p_dist_traveled**2)
                 
                 p_mesh_cell[i] = cell_next
-                p_time[i]  += p_dist_travled/p_speed[i]
+                p_time[i]  += p_dist_traveled/p_speed[i]
+                p_time_cell[i] = int(p_time[i]/dt)
                 
-                
-                
-
-@nb.jit(nopython=True) 
-def StillIn(p_pos_x, surface_distances, p_alive, num_part):
-    tally_left = 0
-    tally_right = 0
-    for i in range(num_part):
-        #exit at left
-        if p_pos_x[i] <= surface_distances[0]:
-            tally_left += 1
-            p_alive[i] = False
-            
-        elif p_pos_x[i] >= surface_distances[len(surface_distances)-1]:
-            tally_right += 1
-            p_alive[i] = False
-            
-    return(p_alive, tally_left, tally_right)
-
-
-
 
 def test_Advance():
     L = 1

@@ -18,9 +18,6 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     end_flag = 0
     max_mesh_index = len(mesh_total_xsec)-1
     
-    print(mesh_dist_traveled_squared.shape)
-    print(mesh_dist_traveled.shape)
-    
     cycle_count = 0
     while end_flag == 0:
         #allocate randoms
@@ -41,22 +38,19 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
         
         [end_flag, summer, mesh_dist_traveled, mesh_dist_traveled_squared] = DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_traveled, pre_p_mesh, pre_p_time, p_end_trans)
         
-        #print(mesh_dist_traveled_squared.shape)
-        #print(mesh_dist_traveled.shape)
-        
         cycle_count += 1
     
     
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared)
 
-#@nb.jit(nopython=True, parallel=False) 
+@nb.jit(nopython=True, parallel=True) 
 def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
                           p_dir_y, p_dir_z, p_dir_x, 
                           p_mesh_cell, p_speed, p_time, p_time_cell,
                           dx, dt, mesh_total_xsec, L, max_time,
                           p_dist_traveled, p_end_trans, rands, num_part):
                           
-    for i in range(num_part):
+    for i in nb.prange(num_part):
         #print(type(i))
         [p_pos_x[i], p_pos_y[i], p_pos_z[i], p_mesh_cell[i], p_time[i], p_time_cell[i], p_dist_traveled[i], p_end_trans[i]] = Advance_cycle(
                       p_pos_x[i], p_pos_y[i], p_pos_z[i],
@@ -67,7 +61,7 @@ def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
 
 
 
-#@nb.jit(nopython=True) 
+@nb.jit(nopython=True) 
 def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
                   p_dir_y, p_dir_z, p_dir_x, 
                   p_mesh_cell, p_speed, p_time, p_time_cell,
@@ -89,23 +83,19 @@ def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
             
             LB = p_mesh_cell * dx
             RB = LB + dx
-            TB = (p_time_cell+1) * dt
+            TB = (p_time_cell+1) * dt - p_time
             
-            dist_TB = TB * p_speed
+            dist_TB = TB * p_speed + kicker
                 
             space_cell_inc: int = 0
-            
             if (p_dir_x < 0):
-                dist_B = (LB - p_pos_x)/p_dir_x + kicker
+                dist_B = ((LB - p_pos_x)/p_dir_x) + kicker
                 space_cell_inc = -1
             else:
-                dist_B = (RB - p_pos_x)/p_dir_x + kicker
+                dist_B = ((RB - p_pos_x)/p_dir_x) + kicker
                 space_cell_inc = 1
             
             p_dist_traveled = min(dist_TB, dist_B, dist_sampled)
-            
-            if p_dist_traveled > 10:
-                print('oh shoot')
                 
             increment_time_cell: int = 0
             
@@ -113,7 +103,7 @@ def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
                 cell_next = p_mesh_cell + space_cell_inc
             
             elif p_dist_traveled == dist_sampled: #move particle in cell in time step
-                flag = 0
+                p_end_trans = 1
                 cell_next = p_mesh_cell
             
             elif p_dist_traveled == dist_TB:
@@ -126,7 +116,7 @@ def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
             
             p_mesh_cell = cell_next
             p_time  += p_dist_traveled/p_speed
-            p_time_cell += increment_time_cell
+            p_time_cell = int(p_time/dt)
             
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_time_cell, p_dist_traveled, p_end_trans)
 
@@ -153,38 +143,6 @@ def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_travele
         summer += p_end_trans[i]
 
     return(end_flag, summer, mesh_dist_traveled, mesh_dist_traveled_squared)
-
-
-
-
-@nb.jit(nopython=True) 
-def StillInSpace(p_pos_x, surface_distances, p_alive, num_part):
-    tally_left = 0
-    tally_right = 0
-    for i in range(num_part):
-        #exit at left
-        if p_pos_x[i] <= surface_distances[0]:
-            tally_left += 1
-            p_alive[i] = False
-            
-        elif p_pos_x[i] >= surface_distances[len(surface_distances)-1]:
-            tally_right += 1
-            p_alive[i] = False
-            
-    return(p_alive, tally_left, tally_right)
-
-
-@nb.jit(nopython=True) 
-def StillInTime(p_time, max_time, p_alive, num_part):
-    
-    tally_time: int = 0
-    
-    for i in range(num_part):
-        if p_time[i] > max_time:
-            p_alive[i] = 0
-            tally_time +=1
-            
-    return(p_alive, tally_time)
 
 
 def test_Advance():
