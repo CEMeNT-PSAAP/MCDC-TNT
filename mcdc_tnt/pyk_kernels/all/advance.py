@@ -95,16 +95,9 @@ class Advance_cycle:
                 self.p_time[i]  += dist/self.p_speed[i]
 
 
-#@pk.workunit
-#def CellSum
-#    for i in range(num_parts)
-
-
 #@profile
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
-            
-    
     max_mesh_index = int(len(mesh_total_xsec)-1)
     
     p_end_trans: pk.View1D[int] = pk.View([num_part], int)#, space=pk.MemorySpace.CudaSpace) #flag
@@ -151,35 +144,6 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
         print("Advance Complete:......{0}%       ({1}/{2})    cycle: {3}".format(int(100*summer/num_part), summer, num_part, cycle_count), end = "\r")
     print()
     
-
-
-
-@pk.workload
-class StillIn:
-    def __init__(self, p_pos_x, surface_distances, p_alive, num_part, clever_out):
-    
-        self.p_pos_x: pk.View1D[pk.float] = p_pos_x
-        self.clever_out: pk.View1D[int] = clever_out
-        self.surface_distances: pk.View1D[pk.float] = surface_distances
-        self.p_alive: pk.View1D[int] = p_alive
-        self.num_part: int = num_part
-        
-    @pk.main
-    def run(self):
-        tally_left: int = 0
-        tally_right: int = 0
-        for i in range(self.num_part):
-            #exit at left
-            if self.p_pos_x[i] <= 0:
-                tally_left += 1
-                self.p_alive[i] = 0
-                
-            elif self.p_pos_x[i] >= 1:
-                tally_right += 1
-                self.p_alive[i] = 0
-        
-        self.clever_out[0] = tally_left
-        self.clever_out[1] = tally_right
 
 def speedTestAdvance():
     # Position

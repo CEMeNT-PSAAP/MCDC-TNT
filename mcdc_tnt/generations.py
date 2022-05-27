@@ -64,6 +64,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
             print('loading gpu')
             import mcdc_tnt.numba_kernels.cuda as target
     
+    elif comp_parms['hard_targ'] == 'pyk_cpu':
+        import mcdc_tnt.numba_kernels as kernels
+        import mcdc_tnt.pyk_kernels.advance as target
     
     N_mesh = sim_perams['N_mesh']
     nu_new_neutrons = sim_perams['nu']

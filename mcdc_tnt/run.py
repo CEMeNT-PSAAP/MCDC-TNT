@@ -41,7 +41,7 @@ def run(input_file, output_file=None, hard_targ=None):
         from mcdc_tnt.generations import Generations
         print('>>>Running Numba GPU kernels (slow)')
     elif comp_parms['hard_targ'] == 'pyk_cpu':
-        from mcdc_tnt.generations_pyk import Generations
+        from mcdc_tnt.generations import Generations
         print('>>>Running PyKokkos CPU kernels')
         print('    ensure correct conda enviroment is loaded!')
     elif comp_parms['hard_targ'] == 'pyk_gpu':
