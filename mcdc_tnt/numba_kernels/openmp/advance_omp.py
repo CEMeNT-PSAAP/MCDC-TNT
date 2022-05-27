@@ -65,7 +65,6 @@ def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
             numThreads = omp_get_num_threads()
             
     with openmp ('parallel for'):
-    
         for i in range(num_part):
             kicker = 1e-10
 
@@ -101,27 +100,6 @@ def Advance_cycle(p_pos_x, p_pos_y, p_pos_z,
                     
                     p_mesh_cell[i] = cell_next
                     p_time[i]  += p_dist_travled[i]/p_speed[i]
-                        
-    #return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_time, p_dist_travled, p_end_trans)
-
-
-
-
-
-def StillIn(p_pos_x, surface_distances, p_alive, num_part):
-    tally_left = 0
-    tally_right = 0
-    for i in range(num_part):
-        #exit at left
-        if p_pos_x[i] <= surface_distances[0]:
-            tally_left += 1
-            p_alive[i] = False
-            
-        elif p_pos_x[i] >= surface_distances[len(surface_distances)-1]:
-            tally_right += 1
-            p_alive[i] = False
-            
-    return(p_alive, tally_left, tally_right)
 
 
 

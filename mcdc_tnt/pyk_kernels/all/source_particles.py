@@ -18,26 +18,26 @@ class SourceParticles:
                 p_speed, p_time, p_alive,
                 num_parts, particle_speed, meshwise_fission_pdf, rands):
         
-        self.p_pos_x: pk.View1D[pk.double] = p_pos_x
-        self.p_pos_y: pk.View1D[pk.double] = p_pos_y
-        self.p_pos_z: pk.View1D[pk.double] = p_pos_z
+        self.p_pos_x: pk.View1D[pk.float] = p_pos_x
+        self.p_pos_y: pk.View1D[pk.float] = p_pos_y
+        self.p_pos_z: pk.View1D[pk.float] = p_pos_z
         
-        self.p_dir_x: pk.View1D[pk.double] = p_dir_x
-        self.p_dir_y: pk.View1D[pk.double] = p_dir_y
-        self.p_dir_z: pk.View1D[pk.double] = p_dir_z
+        self.p_dir_x: pk.View1D[pk.float] = p_dir_x
+        self.p_dir_y: pk.View1D[pk.float] = p_dir_y
+        self.p_dir_z: pk.View1D[pk.float] = p_dir_z
         
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
-        self.p_speed: pk.View1D[pk.double] = p_speed
-        self.p_time: pk.View1D[pk.double] = p_time
+        self.p_speed: pk.View1D[pk.float] = p_speed
+        self.p_time: pk.View1D[pk.float] = p_time
         self.p_alive: pk.View1D[int] = p_alive
         
-        #self.meshwise_fission_pdf: pk.View1D[pk.double] = meshwise_fission_pdf
+        #self.meshwise_fission_pdf: pk.View1D[pk.float] = meshwise_fission_pdf
         
-        self.rands: pk.View1D[pk.double] = rands
-        self.meshwise_fission_pdf: pk.View1D[pk.double] = meshwise_fission_pdf
+        self.rands: pk.View1D[pk.float] = rands
+        self.meshwise_fission_pdf: pk.View1D[pk.float] = meshwise_fission_pdf
         
         self.num_parts: int = num_parts
-        self.dx: pk.double = dx
+        self.dx: pk.float = dx
         self.particle_speed: float = particle_speed
         
         #print(meshwise_fission_pdf)
@@ -49,7 +49,7 @@ class SourceParticles:
         #p = pk.RangePolicy(pk.get_default_space(), 0, num_parts)
         #T = pk.Timer()
         pk.parallel_for(self.num_parts, self.sourceP)
-        #pr: pk.double = T.seconds()
+        #pr: pk.float = T.seconds()
         
         #pk.printf('%f\n',pr)
         
@@ -76,11 +76,11 @@ class SourceParticles:
         
         
         # Sample polar and azimuthal angles uniformly
-        mu: pk.double  = 2.0*self.rands[i*4+2] - 1.0
-        azi: pk.double = 2.0*self.rands[i*4+3]
+        mu: pk.float  = 2.0*self.rands[i*4+2] - 1.0
+        azi: pk.float = 2.0*self.rands[i*4+3]
     
         # Convert to Cartesian coordinate
-        c: pk.double = (1.0 - mu**2)**0.5
+        c: pk.float = (1.0 - mu**2)**0.5
         self.p_dir_y[i] = math.cos(azi)*c
         self.p_dir_z[i] = math.sin(azi)*c
         self.p_dir_x[i] = mu

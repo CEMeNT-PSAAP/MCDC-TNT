@@ -12,30 +12,30 @@ import math
 class FissionsAdd:
     def __init__(self, p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_time, p_alive, p_speed,
                 fis_count, nu_new_neutrons, fission_event_index, num_part, particle_speed, rands, clever_out):
-        self.p_pos_x: pk.View1D[pk.double] = p_pos_x
-        self.p_pos_y: pk.View1D[pk.double] = p_pos_y
-        self.p_pos_z: pk.View1D[pk.double] = p_pos_z
+        self.p_pos_x: pk.View1D[pk.float] = p_pos_x
+        self.p_pos_y: pk.View1D[pk.float] = p_pos_y
+        self.p_pos_z: pk.View1D[pk.float] = p_pos_z
         
-        self.p_dir_x: pk.View1D[pk.double] = p_dir_x
-        self.p_dir_y: pk.View1D[pk.double] = p_dir_y
-        self.p_dir_z: pk.View1D[pk.double] = p_dir_z
+        self.p_dir_x: pk.View1D[pk.float] = p_dir_x
+        self.p_dir_y: pk.View1D[pk.float] = p_dir_y
+        self.p_dir_z: pk.View1D[pk.float] = p_dir_z
         
         
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
         self.p_alive: pk.View1D[int] = p_alive
-        self.p_time: pk.View1D[pk.double] = p_time
-        self.p_speed: pk.View1D[pk.double] = p_speed
+        self.p_time: pk.View1D[pk.float] = p_time
+        self.p_speed: pk.View1D[pk.float] = p_speed
         
         self.fission_event_index: pk.View1D[int] = fission_event_index
         
         self.clever_out: pk.View1D[int] = clever_out
         
-        self.rands: pk.View1D[pk.double] = rands
+        self.rands: pk.View1D[pk.float] = rands
         
         self.fis_count: int = fis_count
         self.num_part: int = num_part
         self.nu_new_neutrons: int = nu_new_neutrons
-        self.particle_speed: pk.double = particle_speed
+        self.particle_speed: pk.float = particle_speed
         
     
     @pk.main
@@ -55,10 +55,10 @@ class FissionsAdd:
                 # print("produced at: {0}".format(p_pos_x[k+num_part]))
                 # Direction
                 # Sample polar and azimuthal angles uniformly
-                mu: pk.double  = 2.0*self.rands[4*i+2*j] - 1.0
-                azi: pk.double = 2.0*self.rands[4*i+2*j+1]
+                mu: pk.float  = 2.0*self.rands[4*i+2*j] - 1.0
+                azi: pk.float = 2.0*self.rands[4*i+2*j+1]
                 # Convert to Cartesian coordinate
-                c: pk.double = (1.0 - mu**2)**0.5
+                c: pk.float = (1.0 - mu**2)**0.5
                 self.p_dir_y[k+self.num_part] = math.cos(azi)*c
                 self.p_dir_z[k+self.num_part] = math.sin(azi)*c
                 #pk.printf('%f\n',mu)

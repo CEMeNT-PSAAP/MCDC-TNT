@@ -13,9 +13,9 @@ class SampleEvent:
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
         self.p_alive: pk.View1D[int] = p_alive
         
-        self.mesh_cap_xsec: pk.View1D[pk.double] = mesh_cap_xsec
-        self.mesh_scat_xsec: pk.View1D[pk.double] = mesh_scat_xsec
-        self.mesh_fis_xsec: pk.View1D[pk.double] = mesh_fis_xsec
+        self.mesh_cap_xsec: pk.View1D[pk.float] = mesh_cap_xsec
+        self.mesh_scat_xsec: pk.View1D[pk.float] = mesh_scat_xsec
+        self.mesh_fis_xsec: pk.View1D[pk.float] = mesh_fis_xsec
         
         self.scatter_event_index: pk.View1D[int] = scatter_event_index
         self.capture_event_index: pk.View1D[int] = capture_event_index
@@ -23,7 +23,7 @@ class SampleEvent:
         
         self.num_part: int = num_part
         self.nu_new_neutrons: int = num_part
-        self.rands: pk.View1D[pk.double] = rands
+        self.rands: pk.View1D[pk.float] = rands
         
         self.fissions_to_add: int = 0
         self.scat_count: int = 0
@@ -41,16 +41,16 @@ class SampleEvent:
     def run(self):
         for i in range(self.num_part):
             #normalize cross sections in each mesh cell
-            total_scat_xsec: pk.double = self.mesh_scat_xsec[self.p_mesh_cell[i]] + self.mesh_cap_xsec[self.p_mesh_cell[i]] + self.mesh_fis_xsec[self.p_mesh_cell[i]]
-            mesh_scat_xsec_temp: pk.double = self.mesh_scat_xsec[self.p_mesh_cell[i]] / total_scat_xsec
-            mesh_cap_xsec_temp: pk.double = self.mesh_cap_xsec[self.p_mesh_cell[i]] / total_scat_xsec
-            mesh_fis_xsec_temp: pk.double = self.mesh_fis_xsec[self.p_mesh_cell[i]] / total_scat_xsec
+            total_scat_xsec: pk.float = self.mesh_scat_xsec[self.p_mesh_cell[i]] + self.mesh_cap_xsec[self.p_mesh_cell[i]] + self.mesh_fis_xsec[self.p_mesh_cell[i]]
+            mesh_scat_xsec_temp: pk.float = self.mesh_scat_xsec[self.p_mesh_cell[i]] / total_scat_xsec
+            mesh_cap_xsec_temp: pk.float = self.mesh_cap_xsec[self.p_mesh_cell[i]] / total_scat_xsec
+            mesh_fis_xsec_temp: pk.float = self.mesh_fis_xsec[self.p_mesh_cell[i]] / total_scat_xsec
             
             #pk.printf('%d     %d     %d\n ',self.scat_count, self.cap_count, self.fis_count)
             
             if self.p_alive[i] == 1:
                 
-                event_rand:pk.double = self.rands[i]
+                event_rand:pk.float = self.rands[i]
                 
                 #scatter?
                 if event_rand < mesh_scat_xsec_temp:

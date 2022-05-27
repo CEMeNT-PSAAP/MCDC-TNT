@@ -14,10 +14,10 @@ class Scatter:
     def __init__(self,scatter_indices, scat_count, p_dir_x, p_dir_y, p_dir_z, rands):
         self.scatter_indices: pk.View1D[int] = scatter_indices
         self.scat_count: int = scat_count
-        self.p_dir_x: pk.View1D[pk.double] = p_dir_x
-        self.p_dir_y: pk.View1D[pk.double] = p_dir_y
-        self.p_dir_z: pk.View1D[pk.double] = p_dir_z
-        self.rands: pk.View1D[float] = rands 
+        self.p_dir_x: pk.View1D[pk.float] = p_dir_x
+        self.p_dir_y: pk.View1D[pk.float] = p_dir_y
+        self.p_dir_z: pk.View1D[pk.float] = p_dir_z
+        self.rands: pk.View1D[pk.float] = rands 
     
     
     @pk.main
@@ -31,11 +31,11 @@ class Scatter:
     @pk.workunit
     def Scatter_wu(self, i: int):
         # Sample polar and azimuthal angles uniformly
-        mu: pk.double  = 2.0*self.rands[2*i] - 1.0
-        azi: pk.double = 2.0*3.14159265359*self.rands[2*i+1]
+        mu: pk.float  = 2.0*self.rands[2*i] - 1.0
+        azi: pk.float = 2.0*3.14159265359*self.rands[2*i+1]
 	    
         # Convert to Cartesian coordinate
-        c: pk.double = (1.0 - mu**2)**0.5
+        c: pk.float = (1.0 - mu**2)**0.5
         self.p_dir_y[self.scatter_indices[i]] = math.cos(azi)*c
         self.p_dir_z[self.scatter_indices[i]] = math.sin(azi)*c
         self.p_dir_x[self.scatter_indices[i]] = mu
