@@ -16,7 +16,7 @@ surface locations: [0,40]
 
 dx: .5
 
-hardware target: nb_gpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
+hardware target: pyk_cpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
@@ -30,7 +30,7 @@ file output: True
 error plot: True
 flux plot: True
 
-transient tally: True #to see transient behavior must be true
+transient tally: False #to see transient behavior must be true
 tally dt: 1  #time inbetween census snap shots
 max time: 20  #time of simulation end
 
