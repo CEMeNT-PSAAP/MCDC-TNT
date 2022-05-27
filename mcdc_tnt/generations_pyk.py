@@ -52,7 +52,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     num_part = sim_perams['num']
     dx = sim_perams['dx']
     particle_speed = sim_perams['part_speed']
-    
+    data_type = comp_parms['data type']
     
     #===============================================================================
     # Initial setups
@@ -79,10 +79,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     meshwise_fission_pdf_np /= sum(meshwise_fission_pdf_np)
     meshwise_fission_pdf = pk.from_numpy(meshwise_fission_pdf_np)
     
-    mesh_dist_traveled_np = np.zeros(N_mesh, dtype=float)
+    mesh_dist_traveled_np = np.zeros(N_mesh, dtype=data_type)
     mesh_dist_traveled = pk.from_numpy(mesh_dist_traveled_np)
     
-    mesh_dist_traveled_squared_np = np.zeros(N_mesh, dtype=float)
+    mesh_dist_traveled_squared_np = np.zeros(N_mesh, dtype=data_type)
     mesh_dist_traveled_squared = pk.from_numpy(mesh_dist_traveled_squared_np)
     
     
@@ -94,29 +94,29 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     phase_parts = 5*num_part #see note about data storage
     
     # Position
-    p_pos_x_np = np.zeros(phase_parts, dtype=float)
-    p_pos_y_np = np.zeros(phase_parts, dtype=float)
-    p_pos_z_np = np.zeros(phase_parts, dtype=float)
+    p_pos_x_np = np.zeros(phase_parts, dtype=data_type)
+    p_pos_y_np = np.zeros(phase_parts, dtype=data_type)
+    p_pos_z_np = np.zeros(phase_parts, dtype=data_type)
     
     p_pos_x = pk.from_numpy(p_pos_x_np)
     p_pos_y = pk.from_numpy(p_pos_y_np)
     p_pos_z = pk.from_numpy(p_pos_z_np)
     
     # Direction
-    p_dir_x_np = np.zeros(phase_parts, dtype=float)
-    p_dir_y_np = np.zeros(phase_parts, dtype=float)
-    p_dir_z_np = np.zeros(phase_parts, dtype=float)
+    p_dir_x_np = np.zeros(phase_parts, dtype=data_type)
+    p_dir_y_np = np.zeros(phase_parts, dtype=data_type)
+    p_dir_z_np = np.zeros(phase_parts, dtype=data_type)
     
     p_dir_x = pk.from_numpy(p_dir_x_np)
     p_dir_y = pk.from_numpy(p_dir_y_np)
     p_dir_z = pk.from_numpy(p_dir_z_np)
     
     # Speed
-    p_speed_np = np.zeros(phase_parts, dtype=float)
+    p_speed_np = np.zeros(phase_parts, dtype=data_type)
     p_speed = pk.from_numpy(p_speed_np)
     
     # Time
-    p_time_np = np.zeros(phase_parts, dtype=float)
+    p_time_np = np.zeros(phase_parts, dtype=data_type)
     p_time = pk.from_numpy(p_time_np)
     
     # Region
@@ -140,7 +140,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     surface_distances = pk.from_numpy(surface_distances_np)
     print(surface_distances.dtype)
     
-    rands_np = np.random.random([num_part*4])
+    rands_np = np.random.random([num_part*4]).astype(data_type)
     rands = pk.from_numpy(rands_np)
     
     #print(p_pos_x.dtype)
@@ -219,7 +219,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         # EVENT 3 : Sample event
         #===============================================================================
         
-        rands_np = np.random.random(num_part)
+        rands_np = np.random.random(num_part).astype(data_type)
         rands = pk.from_numpy(rands_np)
         
         print('Entering Sample!')
@@ -257,7 +257,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         # EVENT 3 : Scatter
         #===============================================================================
         
-        rands_np = np.random.random(scat_count * 2) #exact number of rands known
+        rands_np = np.random.random(scat_count * 2).astype(data_type) #exact number of rands known
         rands = pk.from_numpy(rands_np)
         
         timer = pk.Timer()
@@ -276,7 +276,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         # print("max index {0}".format(num_part))
         # print("")
         
-        rands_np = np.random.random(fis_count * nu_new_neutrons * 2) #exact number of rands known
+        rands_np = np.random.random(fis_count * nu_new_neutrons * 2).astype(data_type) #exact number of rands known
         rands = pk.from_numpy(rands_np)
         #2 is for number reqired per new neutron
         timer = pk.Timer()
