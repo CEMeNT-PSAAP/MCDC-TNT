@@ -46,6 +46,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     
     if comp_parms['hard_targ'] == 'pp':
         import mcdc_tnt.pp_kernels as kernels
+        import mcdc_tnt.pp_kernels as target
         
     elif comp_parms['hard_targ'][:2] == 'nb':
         import mcdc_tnt.numba_kernels as kernels
@@ -53,7 +54,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         #WarmUp(comp_parms['p_warmup']) #warmup kernels
         
         if comp_parms['hard_targ'] == 'nb_cpu':
-            print('loading gpu')
+            print('loading cpu')
             import mcdc_tnt.numba_kernels.cpu as target
         
         elif comp_parms['hard_targ'] == 'nb_pyomp':

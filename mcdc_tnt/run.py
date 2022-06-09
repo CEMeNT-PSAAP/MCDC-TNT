@@ -68,6 +68,8 @@ def run(input_file, output_file=None, hard_targ=None):
     #scalar_flux /= np.max(scalar_flux)
     np.set_printoptions(threshold=np.inf)   
     
+    np.savez('output', scalar_flux)
+    
     if comp_parms['output file'] == True:
         if (output_file == None):
            output_file = 'output.out'

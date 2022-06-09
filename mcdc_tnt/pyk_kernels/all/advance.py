@@ -6,7 +6,7 @@ import pykokkos as pk
 
 @pk.workload
 class Advance_cycle:
-    def __init__(self, num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x,  p_mesh_cell, p_speed, p_time, dx, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_x, clever_out):
+    def __init__(self, num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x,  p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_mesh, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_x, clever_out):
         
         #print('Position')
         self.p_pos_x: pk.View1D[pk.float] = p_pos_x
@@ -22,10 +22,16 @@ class Advance_cycle:
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
         self.p_speed: pk.View1D[pk.float] = p_speed
         self.p_time: pk.View1D[pk.float] = p_time
+        self.p_time_cell: pk.View1D[pk.float] = p_time_cell
+        
         #print('misc')
         self.dx: pk.float = dx
         self.L: pk.float = L
         self.max_mesh_index: int = max_x
+        self.dt: pk.float = dt
+        self.max_time: pk.float = max_time
+        self.n_mesh: int = n_mesh
+        
         #print(dx)
         #print(L)
         self.num_part: int = num_part
@@ -61,43 +67,57 @@ class Advance_cycle:
                 self.p_end_trans[i] = 1
                 pk.atomic_fetch_add(self.clever_out, [0], 1)
                 
+            elif (self.p_time[i] >= self.max_time):
+                self.p_end_trans[i] = 1
+                pk.atomic_fetch_add(self.clever_out, [0], 1)
+                
             else:
                 dist: pk.float = -math.log(self.rands[i]) / self.mesh_total_xsec[self.p_mesh_cell[i]]
                 
                 x_loc: pk.float = (self.p_dir_x[i] * dist) + self.p_pos_x[i]
                 LB: pk.float = self.p_mesh_cell[i] * self.dx
                 RB: pk.float = LB + self.dx
+                TB: pk.float = (self.p_time_cell[i]+1)*dt - self.p_time[i]
                 
-                if (x_loc < LB):        #move partilce into cell at left
-                    p_dist_travled = (LB - self.p_pos_x[i])/self.p_dir_x[i] + kicker
-                    self.p_mesh_cell[i] -= 1
-                   
-                elif (x_loc > RB):      #move particle into cell at right
-                    p_dist_travled = (RB - self.p_pos_x[i])/self.p_dir_x[i] + kicker
-                    self.p_mesh_cell[i] += 1
-                    
-                else:                   #move particle in cell
-                    p_dist_travled = dist
+                space_cell_inc: int = 0
+                if (self.p_dir_x[i] < 0):
+                    dist_B = ((LB - self.p_pos_x[i])/self.p_dir_x[i]) + kicker
+                    space_cell_inc = -1
+                else:
+                    dist_B = ((RB - self.p_pos_x[i])/self.p_dir_x[i]) + kicker
+                    space_cell_inc = 1
+                
+                p_dist_traveled = min(dist_TB, dist_B, dist_sampled)
+                
+                if   p_dist_traveled == dist_B:      #move partilce into cell at left
+                    cell_next = self.p_mesh_cell[i] + space_cell_inc
+            
+                elif p_dist_traveled == dist_sampled: #move particle in cell in time step
                     self.p_end_trans[i] = 1
+                    cell_next = self.p_mesh_cell[i]
                     pk.atomic_fetch_add(self.clever_out, [0], 1)
-                  
+                
+                elif p_dist_traveled == dist_TB:
+                    cell_next = self.p_mesh_cell[i]
                 
                 self.p_pos_x[i] = self.p_dir_x[i]*p_dist_travled + self.p_pos_x[i]
                 self.p_pos_y[i] = self.p_dir_y[i]*p_dist_travled + self.p_pos_y[i]
                 self.p_pos_z[i] = self.p_dir_z[i]*p_dist_travled + self.p_pos_z[i]
-
-                pk.atomic_fetch_add(self.mesh_dist_traveled, [int_cell], p_dist_travled)
-                pk.atomic_fetch_add(self.mesh_dist_traveled_squared, [int_cell], p_dist_travled**2)
+                
+                mesh_cell: int = int_cell + (p_time_cell[i] * n_mesh)
+                pk.atomic_fetch_add(self.mesh_dist_traveled, [mesh_cell], p_dist_travled)
+                pk.atomic_fetch_add(self.mesh_dist_traveled_squared, [mesh_cell], p_dist_travled**2)
 
                 #p_mesh_cell[i] = cell_next
                 
                 #pk.printf('%d:  x pos after step:     %f       should be: %f\n', i, p_pos_x[i], (temp_x))
                 self.p_time[i]  += dist/self.p_speed[i]
+                self.p_time_cell[i] = int(self.p_time[i]/self.dt)
 
 
 #@profile
-def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time,
-            num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L):
+def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
+            num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L, max_time):
     max_mesh_index = int(len(mesh_total_xsec)-1)
     
     p_end_trans: pk.View1D[int] = pk.View([num_part], int)#, space=pk.MemorySpace.CudaSpace) #flag
@@ -107,6 +127,8 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
     
     end_flag = 0
     cycle_count = 0
+    
+    n_space: int = 80
     
     while end_flag == 0:
         #allocate randoms
@@ -123,7 +145,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_
         
         #space = pk.ExecutionSpace.Cuda
         #print('*******ENTERING ADVANCE*********')
-        pk.execute(pk.ExecutionSpace.OpenMP, Advance_cycle(num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, dx, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, clever_out))#pk for number still in transport
+        pk.execute(pk.ExecutionSpace.OpenMP, Advance_cycle(num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_space, mesh_total_xsec, L, p_end_trans, rands, num_part, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, clever_out))#pk for number still in transport
         
         summer = clever_out[0]
         

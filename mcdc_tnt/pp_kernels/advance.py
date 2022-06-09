@@ -122,7 +122,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                 #advance particle clock
                 p_time[i]  += dist_traveled/p_speed[i] + kicker
                 
-                #p_time_cell[i] += int(p_time[i]/dt)
+                p_time_cell[i] += int(p_time[i]/dt)
                 
                 calc_cell = int(p_time[i]/dt)
                 '''
@@ -145,7 +145,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
         #print("Advance Complete:......{0}%".format(int(100*i/num_part)), end = "\r")
     #print()
     
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared)
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared)
 
 
 def StillInSpace(p_pos_x, surface_distances, p_alive, num_part):

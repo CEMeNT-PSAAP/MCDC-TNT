@@ -21,9 +21,6 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     n_space: int = 80 #mesh_dist_traveled.shape[1]
     n_time: int = 20 #mesh_dist_traveled.shape[0]
     
-    print(n_space)
-    print(n_time)
-    
     #print(mesh_dist_traveled)
     
     cycle_count = 0
