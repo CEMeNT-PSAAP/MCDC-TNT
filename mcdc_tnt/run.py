@@ -61,7 +61,7 @@ def run(input_file, output_file=None, hard_targ=None):
     print('Simulation complete')
     print()
     
-    x_mesh = np.linspace(0,sim_perams['L_slab'],80)#len(scalar_flux))
+    x_mesh = np.linspace(0,sim_perams['L_slab'],sim_perams['N_mesh'])#len(scalar_flux))
     X = np.linspace(0, sim_perams['L_slab'], 80+1)#int(scalar_flux.size+1))
     
     #print(scalar_flux)
@@ -109,8 +109,8 @@ def run(input_file, output_file=None, hard_targ=None):
     
     import matplotlib.pyplot as plt
     plt.figure(2)
-    for i in range(scalar_flux.shape[0]):
-        plt.plot(x_mesh, scalar_flux[i,:], label=i)
+    for i in range(scalar_flux.shape[1]):
+        plt.plot(x_mesh, scalar_flux[:,i], label=i)
     plt.show()
     
     '''

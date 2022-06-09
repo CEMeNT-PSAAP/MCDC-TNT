@@ -334,7 +334,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     standard_deviation_flux = np.sqrt(standard_deviation_flux/(init_particle))
     
     #x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
-    scalar_flux = mesh_dist_traveled/dx
+    scalar_flux = mesh_dist_traveled/(dx*dt)
     #scalar_flux/=max(scalar_flux)
     
     #if comp_parms['hard_targ'] == 'nb_gpu':

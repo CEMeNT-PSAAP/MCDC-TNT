@@ -48,8 +48,13 @@ def SimulationSetup(input_file):
     Length_slab = np.float(inputs['length of slab'])
     surface_distances = np.array(inputs['surface locations'], dtype=dat_type)
     
-    mesh_cell_length = np.float(inputs['dx']) #dx
-    N_mesh = int(Length_slab/mesh_cell_length)
+    
+    if inputs['mesh mod generation'] == 'dx':
+        mesh_cell_length = np.float(inputs['dx']) #dx
+        N_mesh = int(Length_slab/mesh_cell_length)
+    elif inputs['mesh mod generation'] == 'n':
+        N_mesh = int(inputs['n'])
+        mesh_cell_length = float(Length_slab/N_mesh)
     
     cap_xsec = np.float(inputs['capture cross section']) #capture crossection
     scat_xsec = np.float(inputs['scatter cross section'])  #scattering crossection

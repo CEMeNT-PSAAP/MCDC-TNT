@@ -9,7 +9,7 @@ import numpy as np
 import numba as nb
 
 
-@nb.jit(nopython=True, parallel=True)
+@nb.jit(nopython=True)
 def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive,
         num_parts, meshwise_fission_pdf, particle_speed, isotropic=True):
     """

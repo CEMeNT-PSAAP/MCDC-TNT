@@ -14,9 +14,12 @@ isotropic: True
 length of slab: 40.0
 surface locations: [0,40]
 
+mesh mod generation: n #n or dx
 dx: .5
+n: 81
 
-hardware target: nb_cpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
+
+hardware target: pp # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
