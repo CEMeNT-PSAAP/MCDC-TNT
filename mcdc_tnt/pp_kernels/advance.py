@@ -108,6 +108,13 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                 #mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
                 #mesh_dist_traveled_squared[p_mesh_cell[i]] += dist_traveled**2
                 
+                if p_time_cell[i] >= 20:
+                    print('Error outside meshe cell')
+                    print('p_pos_x      {}'.format(p_pos_x[i]))
+                    print('p_time       {}'.format(p_time[i]))
+                    print('p_mesh_cell  {}'.format(p_mesh_cell[i]))
+                    #print('p_pos_x      %'%p_pos_x[i])
+                
                 mesh_dist_traveled[p_mesh_cell[i], p_time_cell[i]] += dist_traveled
                 mesh_dist_traveled_squared[p_mesh_cell[i], p_time_cell[i]] += dist_traveled**2
                 

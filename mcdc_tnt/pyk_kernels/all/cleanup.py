@@ -9,7 +9,7 @@ import numpy as np
 
 @pk.workload
 class BringOutYourDead:
-    def __init__ (self,p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, clever_out):
+    def __init__ (self,p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, p_alive, num_part, clever_out):
         self.p_pos_x: pk.View1D[pk.float] = p_pos_x
         self.p_pos_y: pk.View1D[pk.float] = p_pos_y
         self.p_pos_z: pk.View1D[pk.float] = p_pos_z
@@ -21,6 +21,7 @@ class BringOutYourDead:
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
         self.p_speed: pk.View1D[pk.float] = p_speed
         self.p_time: pk.View1D[pk.float] = p_time
+        self.p_time_cell: pk.View1D[pk.float] = p_time_cell
         self.p_alive: pk.View1D[int] = p_alive
         
         self.num_part: int = num_part
@@ -46,6 +47,7 @@ class BringOutYourDead:
                 
                 # Time
                 self.p_time[kept] = self.p_time[i]
+                self.p_time_cell[kept] = p_time_cell[i]
                 
                 # Regions
                 self.p_mesh_cell[kept] = self.p_mesh_cell[i]

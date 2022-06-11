@@ -6,7 +6,7 @@ import pykokkos as pk
 
 @pk.workload
 class Advance_cycle:
-    def __init__(self, num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x,  p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_mesh, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_x, clever_out):
+    def __init__(self, num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_mesh, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_x, clever_out):
         
         #print('Position')
         self.p_pos_x: pk.View1D[pk.float] = p_pos_x
@@ -143,9 +143,9 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt p_dir_y, p_dir_z, p_d
         pre_p_mesh = p_mesh_cell
         L = float(L)
         
-        #space = pk.ExecutionSpace.Cuda
+        space = pk.ExecutionSpace.Cuda #pk.ExecutionSpace.OpenMP
         #print('*******ENTERING ADVANCE*********')
-        pk.execute(pk.ExecutionSpace.OpenMP, Advance_cycle(num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_space, mesh_total_xsec, L, p_end_trans, rands, num_part, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, clever_out))#pk for number still in transport
+        pk.execute(space, Advance_cycle(num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_space, mesh_total_xsec, L, p_end_trans, rands, num_part, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, clever_out))#pk for number still in transport
         
         summer = clever_out[0]
         

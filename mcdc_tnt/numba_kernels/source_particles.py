@@ -64,7 +64,7 @@ def SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z
         p_mesh_cell[i] = cell
         
         #sample birth location within cell
-        p_pos_x[i] = dx*cell + dx*np.random.random()
+        p_pos_x[i] = cell*dx + dx/2
         p_pos_y[i] = 0.0
         p_pos_z[i] = 0.0
         

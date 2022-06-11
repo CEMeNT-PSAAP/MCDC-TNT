@@ -69,6 +69,7 @@ class FissionsAdd:
                 
                 # Time
                 self.p_time[k+self.num_part] = self.p_time[self.fission_event_index[i]]
+                self.p_time_cell[k+self.num_part] = self.p_time_cell[self.fission_event_index[i]]
 
                 # Flags
                 self.p_alive[k+self.num_part] = 1

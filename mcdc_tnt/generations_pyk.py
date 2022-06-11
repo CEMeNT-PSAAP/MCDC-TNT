@@ -194,7 +194,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         print('Entering Advance!')
         timer = pk.Timer()
         
-        kernels.Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1])
+        kernels.Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1], max_time)
         
         res = timer.seconds()
         print('Advance function time {0}'.format(res))

@@ -1,4 +1,4 @@
-from .advance import Advance, StillInSpace, StillInTime
+from .advance_cpu import Advance, StillInSpace, StillInTime
 from .cleanup import BringOutYourDead
 from .fissions_add import FissionsAdd
 from .sample_event import SampleEvent

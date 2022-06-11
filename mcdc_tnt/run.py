@@ -40,6 +40,9 @@ def run(input_file, output_file=None, hard_targ=None):
     elif comp_parms['hard_targ'] == 'nb_gpu':
         from mcdc_tnt.generations import Generations
         print('>>>Running Numba GPU kernels (slow)')
+    elif comp_parms['hard_targ'] == 'nb_pyomp':
+        from mcdc_tnt.generations import Generations
+        print('>>>Running Numba PyOmp kernels')
     elif comp_parms['hard_targ'] == 'pyk_cpu':
         from mcdc_tnt.generations import Generations
         print('>>>Running PyKokkos CPU kernels')
@@ -68,8 +71,8 @@ def run(input_file, output_file=None, hard_targ=None):
     #scalar_flux /= np.max(scalar_flux)
     np.set_printoptions(threshold=np.inf)   
     
-    np.savez('output', scalar_flux)
-    
+    np.savez('output', scalar_flux=scalar_flux, x=x_mesh)
+    '''
     if comp_parms['output file'] == True:
         if (output_file == None):
            output_file = 'output.out'
@@ -84,7 +87,7 @@ def run(input_file, output_file=None, hard_targ=None):
         print()
     else:
         print('No file outputs requested, Simulation Complete')
-    
+    '''
     '''
     if comp_parms['plot error'] == True:
         import matplotlib.pyplot as plt
@@ -106,14 +109,14 @@ def run(input_file, output_file=None, hard_targ=None):
     #print()
     #print()
     #print(scalar_flux[:,0])
-    
+    '''
     import matplotlib.pyplot as plt
     plt.figure(2)
     for i in range(scalar_flux.shape[1]):
         plt.plot(x_mesh, scalar_flux[:,i], label=i)
     plt.show()
     
-    '''
+    
     if comp_parms['plot flux'] == True:
         import matplotlib.pyplot as plt
         plt.figure(2)

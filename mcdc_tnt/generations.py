@@ -1,6 +1,7 @@
 import numpy as np
 from timeit import default_timer as timer
-
+import numba as nb
+#nb.config.DISABLE_JIT = True
 
 
 #import numba_kernels.cpu as kernels
@@ -45,6 +46,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     """
     
     if comp_parms['hard_targ'] == 'pp':
+        import numba as nb
+        nb.config.DISABLE_JIT = True
         import mcdc_tnt.pp_kernels as kernels
         import mcdc_tnt.pp_kernels as target
         
@@ -56,10 +59,11 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
         if comp_parms['hard_targ'] == 'nb_cpu':
             print('loading cpu')
             import mcdc_tnt.numba_kernels.cpu as target
+           # nb.config.NUMBA_NUM_THREADS = 1
         
         elif comp_parms['hard_targ'] == 'nb_pyomp':
             print('loading PyOMP')
-            import mcdc_tnt.numba_kernels.omp as target
+            import mcdc_tnt.numba_kernels.openmp as target
         
         elif comp_parms['hard_targ'] == 'nb_gpu':
             print('loading gpu')
@@ -114,7 +118,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     # Allocate particle phase space
     #===============================================================================
     
-    phase_parts = int(150*num_part) #see note about data storage
+    phase_x = comp_parms['phase_x']
+    phase_parts = int(phase_x*num_part) #see note about data storage
     
     # Position
     p_pos_x = np.zeros(phase_parts, dtype=dat_type)
@@ -211,13 +216,14 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
                     print('{0}    {1}    {2}    {3}    {4}    {5}      {6}'.format(i, p_time_i[i], p_time[i], p_time_cell[i], p_pos_x[i], a[i], p_dir_x[i]))
             print()
             print()
-            return()
+        #    return()
         
         end = timer()
         print('Advance time: {0}'.format(end-start))
         #===============================================================================
         # EVENT 2a : Still in problem Spatially
         #===============================================================================
+        
         [p_alive, tally_left_t, tally_right_t] = kernels.StillInSpace(p_pos_x, surface_distances, p_alive, num_part)
         
         trans_lhs += tally_left_t
@@ -341,6 +347,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     #    scalar_flux = np.transpose(scalar_flux)
     #    standard_deviation_flux = np.transpose(standard_deviation_flux)
     
+    print(np.max(scalar_flux))
+    
     return(scalar_flux, standard_deviation_flux)
     
     # # the sum of all debits from functional operations should be the number of
@@ -355,6 +363,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     # print("particles leaving left:    {0}".format(tally_left_t))
     # print("particles leaving right:   {0}".format(tally_right_t))
     # print("total particles now alive and stored: {0}".format(num_part))
+    
+    
     
     # # alive_last = alive_now
     

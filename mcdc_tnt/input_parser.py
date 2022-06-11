@@ -52,9 +52,17 @@ def SimulationSetup(input_file):
     if inputs['mesh mod generation'] == 'dx':
         mesh_cell_length = np.float(inputs['dx']) #dx
         N_mesh = int(Length_slab/mesh_cell_length)
+        print()
+        print('>>>Input Relation: n={0}'.format(N_mesh))
+        print()
     elif inputs['mesh mod generation'] == 'n':
         N_mesh = int(inputs['n'])
         mesh_cell_length = float(Length_slab/N_mesh)
+        print()
+        print('>>>Input Relation: dx={0}'.format(mesh_cell_length))
+        print()
+    
+    phase_x = inputs['phase space vec']
     
     cap_xsec = np.float(inputs['capture cross section']) #capture crossection
     scat_xsec = np.float(inputs['scatter cross section'])  #scattering crossection
@@ -106,7 +114,8 @@ def SimulationSetup(input_file):
                   'plot error': plot_error,
                   'sim name': sim_name,
                   'output file': make_out,
-                  'data type': dat_type}
+                  'data type': dat_type,
+                  'phase_x': phase_x}
                   
     sim_perams = {'num': num_part,
                   'L_slab': Length_slab,

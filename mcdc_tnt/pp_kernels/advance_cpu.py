@@ -9,9 +9,8 @@ import math
 import numpy as np
 import numba as nb
 
-#
+#@nb.jit(nopython=True)
 #@profile
-@nb.jit(nopython=True)
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L, max_time):
     
@@ -44,7 +43,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
 
 
 
-@nb.jit(nopython=True, parallel=True) 
+#@nb.jit(nopython=True, parallel=True) 
 def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
                           p_dir_y, p_dir_z, p_dir_x, 
                           p_mesh_cell, p_speed, p_time, p_time_cell,
@@ -97,13 +96,19 @@ def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
                 p_pos_z[i] += p_dir_z[i]*p_dist_traveled[i]
                 
                 p_mesh_cell[i] = cell_next
-                p_time[i]  += p_dist_traveled[i]/p_speed[i]
+                p_time[i]  += p_dist_traveled[i]/p_speed[i] + kicker
                 p_time_cell[i] = int(p_time[i]/dt)
+                
+                #if p_time_cell[i] >= 20:
+                #    print('Error outside time cell')
+                #    print('p_pos_x      {}'.format(p_pos_x[i]))
+                #    print('p_time       {}'.format(p_time[i]))
+                #    print('p_mesh_cell  {}'.format(p_mesh_cell[i]))
 
 
 
 
-@nb.jit(nopython=True)
+#@nb.jit(nopython=True)
 def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_traveled, mesh, time_mesh, p_end_trans):
 
     end_flag = 1
@@ -114,10 +119,11 @@ def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_travele
         cur_cell = int(mesh[i])
         cur_time = int(time_mesh[i])
         
+        #only tally if still in the problem space
         if (0 <= cur_cell) and (cur_cell <= max_mesh_index):
-            if (cur_time < 20):
-                mesh_dist_traveled[cur_cell, cur_time] += p_dist_traveled[i]
-                mesh_dist_traveled_squared[cur_cell, cur_time] += p_dist_traveled[i]**2
+            #if (cur_time < 20):
+            mesh_dist_traveled[cur_cell, cur_time] += p_dist_traveled[i]
+            mesh_dist_traveled_squared[cur_cell, cur_time] += p_dist_traveled[i]**2
             
         if p_end_trans[i] == 0:
             end_flag = 0
@@ -125,6 +131,38 @@ def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_travele
         summer += p_end_trans[i]
 
     return(end_flag, summer)
+
+
+def StillInSpace(p_pos_x, surface_distances, p_alive, num_part):
+    tally_left: int = 0
+    tally_right: int = 0
+    L = surface_distances[-1]
+    
+    for i in range(num_part):
+        #exit at left
+        if p_pos_x[i] <= 0:
+            tally_left += 1
+            p_alive[i] = 0
+        
+        #reflected right
+        elif p_pos_x[i] >= L:
+            tally_right += 1
+            p_alive[i] = 0
+            #p_alive[i] = False
+            
+    return(p_alive, tally_left, tally_right)
+    
+    
+def StillInTime(p_time, max_time, p_alive, num_part):
+    
+    tally_time: int = 0
+    
+    for i in range(num_part):
+        if p_time[i] >= max_time:
+            p_alive[i] = 0
+            tally_time +=1
+            
+    return(p_alive, tally_time)
 
 
 def test_Advance():
