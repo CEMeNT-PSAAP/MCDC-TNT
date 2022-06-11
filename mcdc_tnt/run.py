@@ -44,12 +44,12 @@ def run(input_file, output_file=None, hard_targ=None):
         from mcdc_tnt.generations import Generations
         print('>>>Running Numba PyOmp kernels')
     elif comp_parms['hard_targ'] == 'pyk_cpu':
-        from mcdc_tnt.generations import Generations
+        from mcdc_tnt.generations_pyk import Generations
         print('>>>Running PyKokkos CPU kernels')
         print('    ensure correct conda enviroment is loaded!')
     elif comp_parms['hard_targ'] == 'pyk_gpu':
         print('>>>Feature not yet implemented, running pyk cpu kerenels')
-        from mcdc_tnt.generations_pyk import Generations
+        from mcdc_tnt.generations_pyk_gpu import Generations
         print('>>>Running PyKokkos CPU kernels')
         print('    ensure correct conda enviroment is loaded!')
     else:
@@ -109,13 +109,13 @@ def run(input_file, output_file=None, hard_targ=None):
     #print()
     #print()
     #print(scalar_flux[:,0])
-    '''
+    
     import matplotlib.pyplot as plt
     plt.figure(2)
-    for i in range(scalar_flux.shape[1]):
-        plt.plot(x_mesh, scalar_flux[:,i], label=i)
+    for i in range(scalar_flux.shape[0]):
+        plt.plot(x_mesh, scalar_flux[i,:], label=i)
     plt.show()
-    
+    '''
     
     if comp_parms['plot flux'] == True:
         import matplotlib.pyplot as plt

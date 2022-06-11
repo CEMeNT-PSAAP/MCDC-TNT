@@ -1,7 +1,7 @@
 
 
 name: 'fissioning_slab'
-number of particles: 1e7
+number of particles: 1e5
 rng seed: 777
 particle speed: 1
 neutrons per fission: 2.3
@@ -19,14 +19,14 @@ dx: .5
 n: 81
 
 
-hardware target: nb_pyomp # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
+hardware target: pyk_cpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
 threads: 16
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
-capture cross section: 0
-scatter cross section: 0
-fission cross section: 1 #0.666
+capture cross section: .333333
+scatter cross section: .333333
+fission cross section: .333333 #0.666
 mesh file: mesh_data.csv
 
 file output: True
@@ -42,4 +42,4 @@ max time: 20  #time of simulation end
 #note that native python "float" is a 64bit
 floating point accuracy: float #float (np.float32) double (np.float64)
 
-phase space vec: 4
+phase space vec: 20

@@ -106,13 +106,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     
     # last Ntime itter is for all post times in the particle generation scheem
     
-    if trans_tally == True:
-        mesh_dist_traveled = np.zeros([N_mesh, N_time], dtype=dat_type)
-        mesh_dist_traveled_squared = np.zeros([N_mesh, N_time], dtype=dat_type)
-        print('Transient mesh generated')
-    else:
-        mesh_dist_traveled = np.zeros([N_mesh], dtype=dat_type)
-        mesh_dist_traveled_squared = np.zeros([N_mesh], dtype=dat_type)
+    mesh_dist_traveled = np.zeros([N_mesh* N_time], dtype=dat_type)
+    mesh_dist_traveled_squared = np.zeros([N_mesh* N_time], dtype=dat_type)
     
     #===============================================================================
     # Allocate particle phase space
@@ -332,6 +327,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec, mesh_scat_xsec, mesh_fis_
     #===============================================================================
     # Step Output
     #===============================================================================
+    mesh_dist_traveled.resize(N_time, N_mesh)
+    mesh_dist_traveled_squared.resize(N_time, N_mesh)
     
     
     mesh_dist_traveled /= init_particle

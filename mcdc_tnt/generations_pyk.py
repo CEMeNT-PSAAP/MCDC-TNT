@@ -53,6 +53,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     dx = sim_perams['dx']
     particle_speed = sim_perams['part_speed']
     data_type = comp_parms['data type']
+    dt = sim_perams['dt']
+    max_time = sim_perams['max time']
+    N_time = sim_perams['N_time']
+    trans_tally = sim_perams['trans_tally']
     
     #===============================================================================
     # Initial setups
@@ -79,10 +83,10 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     meshwise_fission_pdf_np /= sum(meshwise_fission_pdf_np)
     meshwise_fission_pdf = pk.from_numpy(meshwise_fission_pdf_np)
     
-    mesh_dist_traveled_np = np.zeros(N_mesh, dtype=data_type)
+    mesh_dist_traveled_np = np.zeros(N_mesh* N_time, dtype=data_type)
     mesh_dist_traveled = pk.from_numpy(mesh_dist_traveled_np)
     
-    mesh_dist_traveled_squared_np = np.zeros(N_mesh, dtype=data_type)
+    mesh_dist_traveled_squared_np = np.zeros(N_mesh* N_time, dtype=data_type)
     mesh_dist_traveled_squared = pk.from_numpy(mesh_dist_traveled_squared_np)
     
     
@@ -118,6 +122,9 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     # Time
     p_time_np = np.zeros(phase_parts, dtype=data_type)
     p_time = pk.from_numpy(p_time_np)
+    
+    p_time_cell_np = np.zeros(phase_parts, dtype=data_type)
+    p_time_cell = pk.from_numpy(p_time_cell_np)
     
     # Region
     p_mesh_cell_np = np.zeros(phase_parts, dtype=np.int32)
@@ -159,7 +166,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     print('Entering Source!')
     timer = pk.Timer()
     
-    pk.execute(pk.ExecutionSpace.Default, 
+    pk.execute(pk.ExecutionSpace.OpenMP, 
         kernels.SourceParticles(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, particle_speed, meshwise_fission_pdf, rands))
           #                      p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_parts, particle_speed, meshwise_fission_pdf, rands
     res = timer.seconds()

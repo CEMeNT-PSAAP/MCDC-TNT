@@ -208,8 +208,9 @@ def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_travele
         
         if (0 <= cur_cell) and (cur_cell <= max_mesh_index):
             if (cur_time < 20):
-                mesh_dist_traveled[cur_cell, cur_time] += p_dist_traveled[i]
-                mesh_dist_traveled_squared[cur_cell, cur_time] += p_dist_traveled[i]**2
+                cell = cur_cell + (cur_time*(max_mesh_index+1))
+                mesh_dist_traveled[cell] += p_dist_traveled[i]
+                mesh_dist_traveled_squared[cell] += p_dist_traveled[i]**2
             
         if p_end_trans[i] == 0:
             end_flag = 0

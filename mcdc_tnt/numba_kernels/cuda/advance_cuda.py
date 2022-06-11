@@ -25,16 +25,6 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     
     cycle_count = 0
     
-    #get mesh into row dominated matricies
-    dist = mesh_dist_traveled.reshape(-1) #Array2Vec(mesh_dist_traveled)
-    #print()
-    #print()
-    #print('*****before******')
-    #for i in range(30, 50, 1):
-    #    print(dist[i])
-    #print()
-    #print()
-    dist_sq = mesh_dist_traveled.reshape(-1) #Array2Vec(mesh_dist_traveled_squared)
     
     #copy data to cuda device
     d_p_pos_x = cuda.to_device(p_pos_x)
@@ -104,29 +94,10 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     
     dist_sq = d_mesh_dist_traveled_squared.copy_to_host()
     
-    mesh_dist_traveled = dist.reshape(n_time, n_space) #Vec2Array(dist, n_time, n_space)
-    mesh_dist_traveled_squared = dist_sq.reshape(n_time, n_space) #Vec2Array(dist_sq, n_time, n_space)
-    
     
     #print(mesh_dist_traveled)
     
     return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared)
-
-
-def Array2Vec(array):
-    #returns a row dominat matrix [rows, cols] = rows*i + cols
-    vec = np.zeros(array.size)
-    n_rows = array.shape[0]
-    n_cols = array.shape[1]
-    for i in range(n_rows):
-        vec[i*n_cols:(i+1)*n_cols] = array[i,:]
-    return(vec)
-        
-def Vec2Array(vec, n_rows, n_cols):
-    array = np.zeros([n_rows, n_cols])
-    for i in range(n_rows):
-        array[i,:] = vec[i*n_cols:(i+1)*n_cols] 
-    return(array)
 
 @cuda.jit
 def AdvanceCuda(p_pos_x, p_pos_y, p_pos_z,
