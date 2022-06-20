@@ -95,7 +95,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     # Allocate particle phase space
     #===============================================================================
     
-    phase_parts = 5*num_part #see note about data storage
+    phase_parts = 20*num_part #see note about data storage
     
     # Position
     p_pos_x_np = np.zeros(phase_parts, dtype=data_type)
@@ -123,7 +123,7 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     p_time_np = np.zeros(phase_parts, dtype=data_type)
     p_time = pk.from_numpy(p_time_np)
     
-    p_time_cell_np = np.zeros(phase_parts, dtype=data_type)
+    p_time_cell_np = np.zeros(phase_parts, dtype=np.int32)
     p_time_cell = pk.from_numpy(p_time_cell_np)
     
     # Region
@@ -145,23 +145,23 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     fission_event_index = pk.from_numpy(fission_event_index_np)
     
     surface_distances = pk.from_numpy(surface_distances_np)
-    print(surface_distances.dtype)
+    #print(surface_distances.dtype)
     
     rands_np = np.random.random([num_part*4]).astype(data_type)
     rands = pk.from_numpy(rands_np)
     
-    #print(p_pos_x.dtype)
-    #print(p_pos_y.dtype)
-    #print(p_pos_z.dtype)
-    #print(p_mesh_cell.dtype)
-    #print(p_dir_y.dtype)
-    #print(p_dir_z.dtype)
-    #print(p_dir_x.dtype)
-    #print(p_speed.dtype)
-    #print(p_time.dtype)
-    #print(p_alive.dtype)
-    #print(meshwise_fission_pdf.dtype)
-    #print(rands.dtype)
+    print(p_pos_x.dtype)
+    print(p_pos_y.dtype)
+    print(p_pos_z.dtype)
+    print(p_mesh_cell.dtype)
+    print(p_dir_y.dtype)
+    print(p_dir_z.dtype)
+    print(p_dir_x.dtype)
+    print(p_speed.dtype)
+    print(p_time.dtype)
+    print(p_alive.dtype)
+    print(meshwise_fission_pdf.dtype)
+    print(rands.dtype)
     
     print('Entering Source!')
     timer = pk.Timer()
@@ -179,7 +179,11 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     alive = num_part
     trans_lhs = 0
     trans_rhs = 0
-    
+    trans_time = 0
+    have_lived = num_part
+    have_died=0
+    total_fissed = 0
+    p_time_i = np.zeros(phase_parts)
     #pk view to export needed integer values form a function
     clever_out: pk.View1D[int] = pk.View([10], pk.int32)
     
@@ -201,25 +205,62 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         print('Entering Advance!')
         timer = pk.Timer()
         
+        #p_time_i[:] = p_time[:]
+        
         kernels.Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, surface_distances[len(surface_distances)-1], max_time)
+        
+        '''
+        for i in range(num_part):
+            if (p_time_i[i] >= p_time[i]):
+                #print('Time did not move forward!')
+                print('{0}    {1}    {2}    {3}    {4}      {5}'.format(i, p_time_i[i], p_time[i], p_time_cell[i], p_pos_x[i], p_dir_x[i]))
+            #print()
+            #print()
+        
+        print(p_pos_x[:num_part])
+        '''
+        #est_lrhs = clever_out[0]
+        #est_llhs = clever_out[0]
+        #est_maxtime = clever_out[0]
+        #est_events = clever_out[0]
+        
+        #print()
+        #print()
+        #print(est_lrhs)
+        #print(est_llhs)
+        #print(est_maxtime)
+        #print(est_events)
+        #print()
         
         res = timer.seconds()
         print('Advance function time {0}'.format(res))
         timer = pk.Timer()
-        
+        clever_out.fill(0)
         #print(sum(p_alive[0:num_part]))  
         #===============================================================================
         # EVENT 2 : Still in problem
         #===============================================================================
-        print('Entering StillIn!')
-        pk.execute(pk.ExecutionSpace.Default, kernels.StillIn(p_pos_x, surface_distances, p_alive, num_part, clever_out))
+        print('Entering StillInSpace!')
+        
+        pk.execute(pk.ExecutionSpace.Default, kernels.StillInSpace(p_pos_x, surface_distances[len(surface_distances)-1], p_alive, num_part, clever_out))
         
         res = timer.seconds()
-        print('Still in function time {0}'.format(res))
-        
+        print('StillSpace in function time {0}'.format(res))
+        timer = pk.Timer()
         
         trans_lhs += clever_out[0]
         trans_rhs += clever_out[1]
+        
+        
+        print('Entering StillInTime!')
+        pk.execute(pk.ExecutionSpace.Default, kernels.StillInTime(p_time, max_time, p_alive, num_part, clever_out))
+        
+        res = timer.seconds()
+        print('StillTime in function time {0}'.format(res))
+        
+        
+        trans_time += clever_out[2]
+        
         
         #print(sum(p_alive[0:num_part]))  
         #===============================================================================
@@ -284,19 +325,23 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         # print("")
         
         rands_np = np.random.random(fis_count * nu_new_neutrons * 2).astype(data_type) #exact number of rands known
+        rands_np2 = np.random.random(fis_count).astype(data_type)
         rands = pk.from_numpy(rands_np)
+        rands2 = pk.from_numpy(rands_np2)
         #2 is for number reqired per new neutron
         timer = pk.Timer()
         
+        clever_out.fill(0)
+        
         print('Entering Fissions!')
         pk.execute(pk.ExecutionSpace.Default, kernels.FissionsAdd(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
-                                                  p_dir_y, p_dir_z, p_dir_x, 
-                                                  p_time, p_alive, p_speed, fis_count, nu_new_neutrons, 
-                                                  fission_event_index, num_part, particle_speed, rands, clever_out))
+                                                  p_dir_y, p_dir_z, p_dir_x, p_time, p_time_cell, p_alive, p_speed, fis_count, nu_new_neutrons, 
+                                                  fission_event_index, num_part, particle_speed, rands,rands2, clever_out))
         res = timer.seconds()
         print('Fissions function time {0}'.format(res))
         #print(sum(p_alive[0:num_part]))  
-        num_part += clever_out[0]
+        particles_added_fission = clever_out[0]
+        num_part += particles_added_fission
         # print("")
         # print("max index {0}".format(num_part))
                                                   
@@ -319,9 +364,11 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         #===============================================================================
         print('Entering PURGE!')
         timer = pk.Timer()
+        #p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, p_alive, num_part, clever_out
+        clever_out.fill(0)
         pk.execute(pk.ExecutionSpace.Default, kernels.BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, 
                                                    p_dir_y, p_dir_z, p_dir_x, p_speed, 
-                                                   p_time, p_alive, num_part, clever_out))
+                                                   p_time, p_time_cell, p_alive, num_part, clever_out))
         #print(sum(p_alive[0:num_part]))         
         res = timer.seconds()
         print('CleanUp function time {0}'.format(res))
@@ -333,9 +380,25 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         
         # print(max(p_mesh_cell[0:num_part]))
         g+=1
+        have_lived += particles_added_fission
+        total_fissed += particles_added_fission
+        have_died += fis_count + trans_lhs + trans_rhs + trans_time + cap_count
         
         res_r = timer_r.seconds()
         print('Cycle function time {0}'.format(res_r))
+        print('Fissions            {0}'.format(fis_count))
+        print('Scatters            {0}'.format(scat_count))
+        print('Captures            {0}'.format(cap_count))
+        print('Fis Particles added {0}'.format(particles_added_fission))
+        print('nu from last cycle  {0}'.format(particles_added_fission/fis_count))
+        print('Leaked on left      {0}'.format(trans_lhs))
+        print('Leaked on right     {0}'.format(trans_rhs))
+        print('Hit end of time     {0}'.format(trans_time))
+        print('have_lived          {0}'.format(have_lived))
+        print('have_died           {0}'.format(have_died))
+        print('total_fissed        {0}'.format(total_fissed))
+        
+        
     #===============================================================================
     # Step Output
     #===============================================================================
@@ -345,6 +408,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
         mesh_dist_traveled_np[i] = mesh_dist_traveled[i]
         mesh_dist_traveled_squared_np[i] = mesh_dist_traveled_squared[i]
     
+    mesh_dist_traveled_np.resize(N_time, N_mesh)
+    mesh_dist_traveled_squared_np.resize(N_time, N_mesh)
     
     mesh_dist_traveled_np /= init_particle
     mesh_dist_traveled_squared_np /= init_particle
@@ -352,8 +417,8 @@ def Generations(comp_parms, sim_perams, mesh_cap_xsec_np, mesh_scat_xsec_np, mes
     standard_deviation_flux = np.sqrt(standard_deviation_flux/(init_particle))
     
     x_mesh = np.linspace(0,surface_distances[len(surface_distances)-1], N_mesh)
-    scalar_flux = mesh_dist_traveled_np/dx
-    scalar_flux/=max(scalar_flux)
+    scalar_flux = mesh_dist_traveled_np/(dx*dt)
+    #scalar_flux/=max(scalar_flux)
     
     return(scalar_flux, standard_deviation_flux)
     

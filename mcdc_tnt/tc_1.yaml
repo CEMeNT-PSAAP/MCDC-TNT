@@ -1,10 +1,10 @@
 
 
 name: 'fissioning_slab'
-number of particles: 1e5
+number of particles: 1e6
 rng seed: 777
 particle speed: 1
-neutrons per fission: 2.3
+neutrons per fission: 2
 isotropic: True
 
 #===============================================================================
@@ -42,4 +42,4 @@ max time: 20  #time of simulation end
 #note that native python "float" is a 64bit
 floating point accuracy: float #float (np.float32) double (np.float64)
 
-phase space vec: 20
+phase space vec: 4

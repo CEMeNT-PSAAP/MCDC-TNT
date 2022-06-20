@@ -58,19 +58,19 @@ class SourceParticles:
         #find mesh cell birth based on provided pdf+
     @pk.workunit
     def sourceP(self, i: int):
-        cell: int = 0
-        summer: float = 0.0
-        while (summer < self.rands[i*4]):
-            summer += self.meshwise_fission_pdf[cell]
-            cell += 1
+        #cell: int = 0
+        #summer: float = 0.0
+        #while (summer < self.rands[i*4]):
+        #    summer += self.meshwise_fission_pdf[cell]
+        #    cell += 1
                 
-        cell -=1
+        #cell -=1
         
         #pk.printf('%f\n',self.rands[i*4])
-        self.p_mesh_cell[i] = int(cell)
+        self.p_mesh_cell[i] = int(40)
         
         #sample birth location within cell
-        self.p_pos_x[i] = dx*cell + dx*self.rands[i*4+1]
+        self.p_pos_x[i] = 20 #dx*cell + dx*self.rands[i*4+1]
         self.p_pos_y[i] = 0.0
         self.p_pos_z[i] = 0.0
         

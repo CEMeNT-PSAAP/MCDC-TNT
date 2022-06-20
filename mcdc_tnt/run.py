@@ -143,6 +143,7 @@ def run(input_file, output_file=None, hard_targ=None):
     #plt.plot(x_mesh, scalar_flux[:, 0])
     #plt.show()
     
+    #import matplotlib.pyplot as plt
     #for i in range(scalar_flux.shape[1]):
     #    print(sum(scalar_flux[:, i]))
     #print()

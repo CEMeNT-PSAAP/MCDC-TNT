@@ -10,8 +10,8 @@ import math
 
 @pk.workload
 class FissionsAdd:
-    def __init__(self, p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_time, p_alive, p_speed,
-                fis_count, nu_new_neutrons, fission_event_index, num_part, particle_speed, rands, clever_out):
+    def __init__(self, p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_time, p_time_cell, p_alive, p_speed,
+                fis_count, nu_new_neutrons, fission_event_index, num_part, particle_speed, rands,rands2,  clever_out):
         self.p_pos_x: pk.View1D[pk.float] = p_pos_x
         self.p_pos_y: pk.View1D[pk.float] = p_pos_y
         self.p_pos_z: pk.View1D[pk.float] = p_pos_z
@@ -24,6 +24,8 @@ class FissionsAdd:
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
         self.p_alive: pk.View1D[int] = p_alive
         self.p_time: pk.View1D[pk.float] = p_time
+        self.p_time_cell: pk.View1D[int] = p_time_cell
+        
         self.p_speed: pk.View1D[pk.float] = p_speed
         
         self.fission_event_index: pk.View1D[int] = fission_event_index
@@ -31,6 +33,7 @@ class FissionsAdd:
         self.clever_out: pk.View1D[int] = clever_out
         
         self.rands: pk.View1D[pk.float] = rands
+        self.rands2: pk.View1D[pk.float] = rands2
         
         self.fis_count: int = fis_count
         self.num_part: int = num_part
@@ -42,7 +45,10 @@ class FissionsAdd:
     def FissionsRun(self):
         k: int = 0 #index for fission temp vectors
         for i in range(self.fis_count):
-            for j in range(self.nu_new_neutrons):
+            nu_sampled: int = 2
+            if rands2[i] < .3:
+                nu_sampled = 3
+            for j in range(nu_sampled):
                 # Position
                 self.p_pos_x[k+self.num_part] = self.p_pos_x[self.fission_event_index[i]]
                 self.p_pos_y[k+self.num_part] = self.p_pos_y[self.fission_event_index[i]]

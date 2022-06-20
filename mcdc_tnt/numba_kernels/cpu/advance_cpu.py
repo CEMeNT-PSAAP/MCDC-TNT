@@ -78,8 +78,6 @@ def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
                     space_cell_inc = 1
                 
                 p_dist_traveled[i] = min(dist_TB, dist_B, dist_sampled)
-                    
-                increment_time_cell: int = 0
                 
                 if   p_dist_traveled[i] == dist_B:      #move partilce into cell at left
                     cell_next = p_mesh_cell[i] + space_cell_inc
@@ -89,7 +87,6 @@ def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
                     cell_next = p_mesh_cell[i]
                 
                 elif p_dist_traveled[i] == dist_TB:
-                    increment_time_cell = 1
                     cell_next = p_mesh_cell[i]
                 
                 p_pos_x[i] += p_dir_x[i]*p_dist_traveled[i]

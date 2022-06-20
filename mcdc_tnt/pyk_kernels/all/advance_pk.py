@@ -3,10 +3,26 @@ import numpy as np
 import pykokkos as pk
 
 
-
 @pk.workload
 class Advance_cycle:
     def __init__(self, num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_mesh, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_x, max_time, clever_out):
+        #print(p_pos_x.dtype)
+        #print(p_pos_y.dtype)
+        #print(p_pos_z.dtype)
+        #print(p_dir_x.dtype)
+        #print(p_dir_y.dtype)
+        #print(p_dir_z.dtype)
+        #print(p_mesh_cell.dtype)
+        #print(p_speed.dtype)
+        #print(p_time.dtype)
+        #print(rands.dtype)
+        #print(p_time_cell.dtype)
+        #print(rands.dtype)
+        #print(mesh_total_xsec.dtype)
+        #print(p_end_trans.dtype)
+        #print(mesh_dist_traveled.dtype)
+        #print(mesh_dist_traveled_squared.dtype)
+        #print(rands.dtype)
         
         #print('Position')
         self.p_pos_x: pk.View1D[pk.float] = p_pos_x
@@ -22,7 +38,7 @@ class Advance_cycle:
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
         self.p_speed: pk.View1D[pk.float] = p_speed
         self.p_time: pk.View1D[pk.float] = p_time
-        self.p_time_cell: pk.View1D[pk.float] = p_time_cell
+        self.p_time_cell: pk.View1D[int] = p_time_cell
         
         #print('misc')
         self.dx: pk.float = dx
@@ -49,30 +65,26 @@ class Advance_cycle:
 
     @pk.main
     def run(self):
-        pk.printf('In main! \n')
+        #pk.printf('In main! \n')
         pk.parallel_for(self.num_part, self.advanceCycle_wu)
     
     @pk.workunit
     def advanceCycle_wu(self, i: int):
         
         kicker: pk.float = 1e-8
-        int_cell: int = self.p_mesh_cell[i]
         p_dist_traveled: pk.float = 0.0
         dist_B: pk.float = 0
         
         if (self.p_end_trans[i] == 0):
-            if (self.p_pos_x[i] < 0): #exited rhs
+            if (self.p_pos_x[i] < 0): #exited lhs
                 self.p_end_trans[i] = 1
                 pk.atomic_fetch_add(self.clever_out, [0], 1)
-                
-            elif (self.p_pos_x[i] >= self.L): #exited lhs
+            elif (self.p_pos_x[i] >= self.L): #exited rhs
                 self.p_end_trans[i] = 1
                 pk.atomic_fetch_add(self.clever_out, [0], 1)
-                
             elif (self.p_time[i] >= self.max_time):
                 self.p_end_trans[i] = 1
                 pk.atomic_fetch_add(self.clever_out, [0], 1)
-                
             else:
                 dist: pk.float = -math.log(self.rands[i]) / self.mesh_total_xsec[self.p_mesh_cell[i]]
                 
@@ -83,47 +95,60 @@ class Advance_cycle:
                 dist_TB: pk.float = TB * p_speed[i] + kicker
                 
                 space_cell_inc: int = 0
-                if (self.p_dir_x[i] < 0):
+                if (self.p_dir_x[i] <= 0):
                     dist_B = ((LB - self.p_pos_x[i])/self.p_dir_x[i]) + kicker
                     space_cell_inc = -1
-                else:
+                 #   if dist < 0:
+                 #       pk.printf('Going left produced a negaitive value!\n')
+                elif (self.p_dir_x[i] > 0):
                     dist_B = ((RB - self.p_pos_x[i])/self.p_dir_x[i]) + kicker
                     space_cell_inc = 1
+                    #if dist < 0:
+                    #    pk.printf('Going right produced a negaitive value!\n')
+                    #    pk.printf('i:   %i, RB:   %f, pos_x:   %f, dir_x:  %f, cell:   %i, dist:   %f\n', i, RB, p_pos_x[i], p_dir_x[i], p_mesh_cell[i], dist_B)
+                #else:
+                #    pk.printf('BIG OL ERROR!')
                 
+                #pk.printf('\n')
+                #pk.printf('Time Bound   %f\n', dist_TB)
+                #pk.printf('Sampeled     %f\n', dist)
+                #pk.printf('space bound: %f\n', dist_B)
                 
-                #if dist_TB < dist_B and dist_TB < dist:
-                #    p_dist_traveled = dist_TB
-                #elif dist_B < dist_TB and dist_B < dist:
-                #    p_dist_traveled = dist_B
-                #elif dist < dist_TB and dist < dist_B:
-                #    p_dist_traveled = dist
+                #pk.printf('selected:   %f\n', p_dist_traveled)
                 
                 #p_dist_traveled = min(dist_TB, dist_B, dist)
                 cell_next: int = 0
-                if p_dist_traveled == dist_B:      #move partilce into cell
+                if dist_B < dist_TB and dist_B < dist:      #move partilce into cell
+                    p_dist_traveled = dist_B
                     cell_next = self.p_mesh_cell[i] + space_cell_inc
-                    
-                elif p_dist_traveled == dist: #move particle in cell in time step
+                
+                elif dist < dist_TB and dist < dist_B: #move particle in cell in time step
+                    p_dist_traveled = dist
                     self.p_end_trans[i] = 1
                     cell_next = self.p_mesh_cell[i]
                     pk.atomic_fetch_add(self.clever_out, [0], 1)
-                    
-                elif p_dist_traveled == dist_TB:
+                    #temp: pk.float()
+                
+                elif dist_TB < dist_B and dist_TB < dist:
+                    p_dist_traveled = dist_TB
                     cell_next = self.p_mesh_cell[i]
                 
-                self.p_pos_x[i] += p_dist_traveled + self.p_pos_x[i]
-                self.p_pos_y[i] += p_dist_traveled + self.p_pos_y[i]
-                self.p_pos_z[i] += p_dist_traveled + self.p_pos_z[i]
+                self.p_pos_x[i] += p_dir_x[i]*p_dist_traveled
+                self.p_pos_y[i] += p_dir_x[i]*p_dist_traveled
+                self.p_pos_z[i] += p_dir_x[i]*p_dist_traveled
                 
-                mesh_cell: int = int_cell + (self.p_time_cell[i] * self.n_mesh)
+                mesh_cell: int = self.p_mesh_cell[i] + (self.p_time_cell[i] * self.n_mesh)
+                #if mesh_cell > 81*20:
+                #    pk.printf('Mesh cell index error')
                 pk.atomic_fetch_add(self.mesh_dist_traveled, [mesh_cell], p_dist_traveled)
                 pk.atomic_fetch_add(self.mesh_dist_traveled_squared, [mesh_cell], p_dist_traveled**2)
-
                 
-                #pk.printf('%d:  x pos after step:     %f       should be: %f\n', i, p_pos_x[i], (temp_x))
-                self.p_mesh_cell[i] = cell_next
+                self.p_mesh_cell[i] = int(self.p_pos_x[i]/0.49382716049382713)
                 self.p_time[i]  += dist/self.p_speed[i]
                 self.p_time_cell[i] = int(self.p_time[i]/self.dt)
+                
+                #pk.printf('%d:  x pos after step:     %f       should be: %f\n', i, p_pos_x[i], (temp_x))
+                
 
 
 #@profile
@@ -135,6 +160,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     p_end_trans.fill(0)
     
     clever_out: pk.View1D[int] = pk.View([4], int)#, space=pk.MemorySpace.CudaSpace)
+    clever_out.fill(0)
     
     end_flag = 0
     cycle_count = 0
@@ -156,7 +182,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
         
         space = pk.ExecutionSpace.OpenMP #pk.ExecutionSpace.OpenMP,   pk.ExecutionSpace.Cuda
         #print('*******ENTERING ADVANCE*********')
-        pk.execute(space, Advance_cycle(num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_space, mesh_total_xsec, L, p_end_trans, rands, num_part, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, clever_out))#pk for number still in transport
+        pk.execute(space, Advance_cycle(num_part, p_pos_x, p_pos_y, p_pos_z, p_dir_y, p_dir_z, p_dir_x, p_mesh_cell, p_speed, p_time, p_time_cell, dx, dt, n_space, mesh_total_xsec, L, p_end_trans, rands, mesh_dist_traveled, mesh_dist_traveled_squared, max_mesh_index, max_time, clever_out))#pk for number still in transport
         
         summer = clever_out[0]
         
@@ -174,8 +200,16 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
             return()
         cycle_count += 1
         
-        print("Advance Complete:......{0}%       ({1}/{2})    cycle: {3}".format(int(100*summer/num_part), summer, num_part, cycle_count), end = "\r")
     print()
+    print(cycle_count)
+    print(clever_out[0])
+    print(clever_out[1])
+    print(clever_out[2])
+    print(clever_out[3])
+    print()
+        
+        #print("Advance Complete:......{0}%       ({1}/{2})    cycle: {3}".format(int(100*summer/num_part), summer, num_part, cycle_count), end = "\r")
+    #print()
     
 
 def speedTestAdvance():

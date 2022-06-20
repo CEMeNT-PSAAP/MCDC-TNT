@@ -10,6 +10,19 @@ import numpy as np
 @pk.workload
 class BringOutYourDead:
     def __init__ (self,p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, p_alive, num_part, clever_out):
+        #print(p_pos_x.dtype)
+        #print(p_pos_y.dtype)
+        #print(p_pos_z.dtype)
+        #print(p_dir_x.dtype)
+        #print(p_dir_y.dtype)
+        #print(p_dir_z.dtype)
+        #print(p_mesh_cell.dtype)
+        #print(p_speed.dtype)
+        #print(p_time.dtype)
+        #print(p_time_cell.dtype)
+        #print(p_alive.dtype)
+        #print(clever_out.dtype)
+    
         self.p_pos_x: pk.View1D[pk.float] = p_pos_x
         self.p_pos_y: pk.View1D[pk.float] = p_pos_y
         self.p_pos_z: pk.View1D[pk.float] = p_pos_z
@@ -19,9 +32,11 @@ class BringOutYourDead:
         self.p_dir_z: pk.View1D[pk.float] = p_dir_z
         
         self.p_mesh_cell: pk.View1D[int] = p_mesh_cell
+        
         self.p_speed: pk.View1D[pk.float] = p_speed
         self.p_time: pk.View1D[pk.float] = p_time
-        self.p_time_cell: pk.View1D[pk.float] = p_time_cell
+        self.p_time_cell: pk.View1D[int] = p_time_cell
+        
         self.p_alive: pk.View1D[int] = p_alive
         
         self.num_part: int = num_part
@@ -67,19 +82,24 @@ def test_BOYD():
     
     num_part = 3
     
-    p_pos_x_np = np.array([1,2,3], dtype=float)
-    p_pos_y_np = np.array([1,2,3], dtype=float)
-    p_pos_z_np = np.array([1,2,3], dtype=float)
+    data_type = np.float32
+    
+    p_pos_x_np = np.array([1,2,3], dtype=data_type)
+    p_pos_y_np = np.array([1,2,3], dtype=data_type)
+    p_pos_z_np = np.array([1,2,3], dtype=data_type)
     
     p_mesh_cell_np = np.array([1,2,3], dtype=np.int32)
     
-    p_dir_x_np = np.array([1,2,3], dtype=float)
-    p_dir_y_np = np.array([1,2,3], dtype=float)
-    p_dir_z_np = np.array([1,2,3], dtype=float)
+    p_dir_x_np = np.array([1,2,3], dtype=data_type)
+    p_dir_y_np = np.array([1,2,3], dtype=data_type)
+    p_dir_z_np = np.array([1,2,3], dtype=data_type)
     
-    p_speed_np = np.array([1,2,3], dtype=float)
-    p_time_np = np.array([1,2,3], dtype=float)
+    p_speed_np = np.array([1,2,3], dtype=data_type)
+    p_time_np = np.array([1,2,3], dtype=data_type)
+    p_time_cell_np = np.array([1,2,3], dtype=np.int32)
     p_alive_np = np.array([0,1,0], dtype=np.int32)
+    
+    
     
     p_pos_x = pk.from_numpy(p_pos_x_np)
     p_pos_y = pk.from_numpy(p_pos_y_np)
@@ -92,13 +112,22 @@ def test_BOYD():
     p_mesh_cell = pk.from_numpy(p_mesh_cell_np)
     p_speed = pk.from_numpy(p_speed_np)
     p_time = pk.from_numpy(p_time_np)
+    p_time_cell = pk.from_numpy(p_time_cell_np)
+    
+    
+    print(p_time_cell_np.dtype)
+    print(p_time_cell.dtype)
+    
+    
     p_alive = pk.from_numpy(p_alive_np)
+    
+    
     
     clever_out_np = np.array([0], dtype=np.int32)
     clever_out = pk.from_numpy(clever_out_np)
     
     pk.execute(pk.ExecutionSpace.OpenMP,
-        BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_alive, num_part, clever_out))
+        BringOutYourDead(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, p_alive, num_part, clever_out))
     
     kept = clever_out[0]
     

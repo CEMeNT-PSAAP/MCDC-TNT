@@ -75,6 +75,8 @@ __global__ void AdvanceCuda(float *p_pos_x, float *p_pos_y, float *p_pos_z,
                 p_pos_y[i] += p_dir_y[i]*p_dist_travled;
                 p_pos_z[i] += p_dir_z[i]*p_dist_travled;
                 
+                
+                int cell = (1+);
                 atomicAdd(&mesh_dist_traveled[init_cell], p_dist_travled);
                 atomicAdd(&mesh_dist_traveled_squared[init_cell], pow(p_dist_travled,2));
                 
