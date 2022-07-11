@@ -1,12 +1,12 @@
 # MC/DC-TNT
 **Monte Carlo / Dynamic Code - Toy Neutronics Testbed**
 
-We seek to explore software engineering methods from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: MCDC
+We seek to explore acceleration schemes from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: [MC/DC]()
 
 ## Methods of Implementation
 We explore three methods to implement our transport functions on:
 1. [PyKokkos](https://github.com/kokkos/pykokkos) portability framework;
-2. [Mako templates with hardware code generating libraries](https://github.com/PyFR/PyFR); and
+2. Hardware code generating libraries [PyOpenCL](https://documen.tician.de/pyopencl/) and [PyCUDA](https://wiki.tiker.net/PyCuda/Installation/Linux/) which have been implemented before in  [PyFR](https://github.com/PyFR/PyFR) (tho their use has been depricated there); and
 3. [Numba](https://numba.pydata.org/)
 
 ## Implemented Physics
@@ -16,8 +16,6 @@ The neutronic physics we target are:
 3. particles produced from fissions;
 4. surface tracking and track length estimators; and
 5. trainsent modeling
-For more information about the impolemented neutron transport throy see the rundown in the docs folder.
-
 
 ## Quick Set-Up
 For Numba (CPU/GPU) and the Pure Python implementation we can do all this:
@@ -87,16 +85,16 @@ transient tally: True           #to see transient behavior must be true
 tally dt: 1                     #time inbetween census snap shots
 max time: 20                    #time of simulation end
 
-file output: True      #should it output flux and stats? if a special file name is desiered supple in command line
+file output: True               #should it output flux and stats? if a special file name is desiered supple in command line
 
-error plot: True       #produce the error plot?
-flux plot: True        #produce the flux plot?
+error plot: True                #produce the error plot?
+flux plot: True                 #produce the flux plot?
 
 #Issues might arries for gpus without the ability to do 64bit math
 #note that native python "float" is a 64bit
 floating point accuracy: float #float (np.float32) double (np.float64)
 
-phase space vec: 4      #our data structure deffinition
+phase space vec: 4              #defining actual static size of phase space vectors
 
 ```
 
