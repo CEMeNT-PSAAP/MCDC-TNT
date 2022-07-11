@@ -9,75 +9,65 @@ import math
 import numpy as np
 import numba as nb
 
-@nb.njit
+#@nb.jit(nopython=True)
+#@profile
 def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell,
             num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L, max_time):
-    """
-    Guts of transport is the function that actaully moves particles around, go figure.
-    Implements surface tracking with flux (w/ error) via track length estimator
+    
+    p_end_trans = np.zeros(num_part)
+    end_flag = 0
+    max_mesh_index = len(mesh_total_xsec)-1
+    
+    cycle_count = 0
+    while end_flag == 0:
+        #allocate randoms
+        rands = np.random.random(num_part)
+        #vector of indicies for particle transport
+        
+        p_dist_traveled = np.zeros(num_part)
+        
+        pre_p_mesh = p_mesh_cell
+        pre_p_time = p_time_cell
+        
+        Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
+                          p_dir_y, p_dir_z, p_dir_x, 
+                          p_mesh_cell, p_speed, p_time, p_time_cell,
+                          dx, dt, mesh_total_xsec, L, max_time,
+                          p_dist_traveled, p_end_trans, rands, num_part)
+        
+        [end_flag, summer] = DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_traveled, pre_p_mesh, pre_p_time, p_end_trans)
+        
+        cycle_count += 1
+    
+    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared)
 
-    Parameters
-    ----------
-    p_pos_x : vector double
-        PSV: x position of phase space particles (index is particle value).
-    p_pos_y : vector double
-        PSV: y position of phase space particles (index is particle value).
-    p_pos_z : vector double
-        PSV: z position of phase space particles (index is particle value).
-    p_mesh_cell : vector int
-        PSV: mesh cell location of a given particle.
-    dx : double
-        mesh cell width.
-    p_dir_y : vector double
-        PSV: y direction unit value of phase space particles (index is particle value).
-    p_dir_z : vector double
-         PSV: z direction unit value of phase space particles (index is particle value).
-    p_dir_x : vector double
-         PSV: x direction unit value of phase space particles (index is particle value).
-    p_speed : vector double
-        PSV: speed (energy) or a particle (index is particle).
-    p_time : vector double
-        PSV: particle clock.
-    num_part : int
-        number of particles currently under transport.
-    mesh_total_xsec : vector double
-        total cross section of every mesh cell (length num_cells).
-    mesh_dist_traveled : vector double
-        track length estimator tally for use in comp of flux.
-    mesh_dist_traveled_squared : TYPE
-        distance a particle travels in each cell for use in error with flux.
-    L : double
-        length of slab.
 
-    Returns
-    -------
-    Updated PSV with mesh distances.
 
-    """
+#@nb.jit(nopython=True, parallel=True) 
+def Advance_launch_threads(p_pos_x, p_pos_y, p_pos_z,
+                          p_dir_y, p_dir_z, p_dir_x, 
+                          p_mesh_cell, p_speed, p_time, p_time_cell,
+                          dx, dt, mesh_total_xsec, L, max_time,
+                          p_dist_traveled, p_end_trans, rands, num_part):
     kicker = 1e-10
-    for i in range(num_part):
-        #print(i)
-        flag = 1
-        cycle_count = 0
-        rands = np.random.random(num_part).astype(np.float32)
-        while (flag == 1):
-            if (p_pos_x[i] < 0): #gone rhs
-                flag = 0
-            elif (p_pos_x[i] >= L): #gone lhs
-                flag = 0
+    for i in nb.prange(num_part):
+        if (p_end_trans[i] == 0):
+            if (p_pos_x[i] < 0): #exited rhs
+                p_end_trans[i] = 1
+            elif (p_pos_x[i] >= L): #exited lhs
+                p_end_trans[i] = 1
             elif (p_time[i] >= max_time):
-                flag = 0
+                p_end_trans[i] = 1
                 
             else:
                 dist_sampled = -math.log(rands[i]) / mesh_total_xsec[p_mesh_cell[i]]
                 
                 LB = p_mesh_cell[i] * dx
                 RB = LB + dx
+                TB = (p_time_cell[i]+1) * dt - p_time[i]
                 
-                TB = ((p_time_cell[i]+1) * dt) - p_time[i]
-                    
                 dist_TB = TB * p_speed[i] + kicker
-                
+                    
                 space_cell_inc: int = 0
                 if (p_dir_x[i] < 0):
                     dist_B = ((LB - p_pos_x[i])/p_dir_x[i]) + kicker
@@ -86,48 +76,62 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
                     dist_B = ((RB - p_pos_x[i])/p_dir_x[i]) + kicker
                     space_cell_inc = 1
                 
-                dist_traveled = min(dist_TB, dist_B, dist_sampled)
-                 
+                p_dist_traveled[i] = min(dist_TB, dist_B, dist_sampled)
+                    
                 increment_time_cell: int = 0
                 
-                if   dist_traveled == dist_B:      #move partilce into cell at left
+                if   p_dist_traveled[i] == dist_B:      #move partilce into cell at left
                     cell_next = p_mesh_cell[i] + space_cell_inc
                 
-                elif dist_traveled == dist_sampled: #move particle in cell in time step
-                    flag = 0
+                elif p_dist_traveled[i] == dist_sampled: #move particle in cell in time step
+                    p_end_trans[i] = 1
                     cell_next = p_mesh_cell[i]
                 
-                elif dist_traveled == dist_TB:
-                    #p_time_cell[i] += 1
-                    cell_next = p_mesh_cell[i]
+                elif p_dist_traveled[i] == dist_TB:
                     increment_time_cell = 1
-                    
-                p_pos_x[i] += p_dir_x[i]*dist_traveled
-                p_pos_y[i] += p_dir_y[i]*dist_traveled
-                p_pos_z[i] += p_dir_z[i]*dist_traveled
-                #mesh_dist_traveled[p_mesh_cell[i]] += dist_traveled
-                #mesh_dist_traveled_squared[p_mesh_cell[i]] += dist_traveled**2
+                    cell_next = p_mesh_cell[i]
                 
-                if p_time_cell[i] >= 20:
-                    print('Error outside meshe cell')
-                    print('p_pos_x      {}'.format(p_pos_x[i]))
-                    print('p_time       {}'.format(p_time[i]))
-                    print('p_mesh_cell  {}'.format(p_mesh_cell[i]))
-                    #print('p_pos_x      %'%p_pos_x[i])
-                
-                mesh_dist_traveled[p_mesh_cell[i], p_time_cell[i]] += dist_traveled
-                mesh_dist_traveled_squared[p_mesh_cell[i], p_time_cell[i]] += dist_traveled**2
+                p_pos_x[i] += p_dir_x[i]*p_dist_traveled[i]
+                p_pos_y[i] += p_dir_y[i]*p_dist_traveled[i]
+                p_pos_z[i] += p_dir_z[i]*p_dist_traveled[i]
                 
                 p_mesh_cell[i] = cell_next
-                p_time[i]  += dist_traveled/p_speed[i]
+                p_time[i]  += p_dist_traveled[i]/p_speed[i] + kicker
                 p_time_cell[i] = int(p_time[i]/dt)
                 
-                cycle_count += 1
-                
-        #print("Advance Complete:......%2d"%(int(100*i/num_part)), end = "\r")
-    #print()
+                #if p_time_cell[i] >= 20:
+                #    print('Error outside time cell')
+                #    print('p_pos_x      {}'.format(p_pos_x[i]))
+                #    print('p_time       {}'.format(p_time[i]))
+                #    print('p_mesh_cell  {}'.format(p_mesh_cell[i]))
+
+
+
+
+#@nb.jit(nopython=True)
+def DistTraveled(num_part, max_mesh_index, mesh_dist_traveled, mesh_dist_traveled_squared, p_dist_traveled, mesh, time_mesh, p_end_trans):
+
+    end_flag = 1
+    cur_cell = 0
+    summer = 0
     
-    return(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, p_time_cell, mesh_dist_traveled, mesh_dist_traveled_squared)
+    for i in range(num_part):
+        cur_cell = int(mesh[i])
+        cur_time = int(time_mesh[i])
+        
+        #only tally if still in the problem space
+        if (0 <= cur_cell) and (cur_cell <= max_mesh_index):
+            if (cur_time < 20):
+                cell: int = cur_cell + cur_time*(max_mesh_index+1)
+                mesh_dist_traveled[cell] += p_dist_traveled[i]
+                mesh_dist_traveled_squared[cell] += p_dist_traveled[i]**2
+            
+        if p_end_trans[i] == 0:
+            end_flag = 0
+            
+        summer += p_end_trans[i]
+
+    return(end_flag, summer)
 
 
 def StillInSpace(p_pos_x, surface_distances, p_alive, num_part):
@@ -160,7 +164,8 @@ def StillInTime(p_time, max_time, p_alive, num_part):
             tally_time +=1
             
     return(p_alive, tally_time)
-    
+
+
 def test_Advance():
     L = 1
     dx = .25
@@ -190,6 +195,7 @@ def test_Advance():
     mesh_dist_traveled_squared = np.zeros(N_m)
     mesh_dist_traveled = np.zeros(N_m)
     
+    
     [p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, mesh_dist_traveled, mesh_dist_traveled_squared] = Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, p_dir_y, p_dir_z, p_dir_x, p_speed, p_time, num_part, mesh_total_xsec, mesh_dist_traveled, mesh_dist_traveled_squared, L)
     
     
@@ -204,7 +210,7 @@ def test_Advance():
 def test_StillIn():    
     
     num_part = 7
-    surface_distances = [0,.25,.75,1]
+    surface_distances = np.array([0,.25,.75,1])
     p_pos_x = np.array([-.01, 0, .1544, .2257, .75, 1.1, 1])
     p_alive = np.ones(num_part, bool)
     
@@ -218,8 +224,6 @@ def test_StillIn():
 
 
 if __name__ == '__main__':
-    test_Advance()
+    #test_Advance()
     test_StillIn()
-   
-
     

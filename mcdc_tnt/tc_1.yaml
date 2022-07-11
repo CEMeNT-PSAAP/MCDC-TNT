@@ -1,31 +1,45 @@
 
 
 name: 'fissioning_slab'
-number of particles: 1e5
+number of particles: 1e6
 rng seed: 777
 particle speed: 1
 neutrons per fission: 2
-isotropic: Ture
+isotropic: True
 
 #===============================================================================
 # Test case 1: Single Reigon
 #===============================================================================
 
-length of slab: 1
-surface locations: [0,1]
+length of slab: 40.0
+surface locations: [0,40]
 
-dx: 0.01
+mesh mod generation: n #n or dx
+dx: .5
+n: 81
 
-hardware target: pyk_cpu ## pp/nb_cpu/nb_gpu/pyk_cpu/pyk_gpu
+
+hardware target: nb_gpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
+#threads: 16
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
-capture cross section: 0.333
-scatter cross section: 0.333
-fission cross section: 0.333
+capture cross section: .333333
+scatter cross section: .333333
+fission cross section: .333333 #0.666
 mesh file: mesh_data.csv
 
 file output: True
 
 error plot: True
 flux plot: True
+
+transient tally: True #to see transient behavior must be true
+tally dt: 1  #time inbetween census snap shots
+max time: 20  #time of simulation end
+
+#Issues might arries for gpus without the ability to do 64bit math
+#note that native python "float" is a 64bit
+floating point accuracy: float #float (np.float32) double (np.float64)
+
+phase space vec: 10
