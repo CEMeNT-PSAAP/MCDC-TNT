@@ -19,8 +19,8 @@ dx: .5
 n: 81
 
 
-hardware target: pyk_cpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
-threads: 16
+hardware target: nb_gpu # pp/nb_cpu/nb_gpu/nb_pyomp/pyk_cpu/pyk_gpu/
+#threads: 16
 print warmup times: True
 
 assemble mesh: True #assemble mesh from crossections here or import from file
@@ -42,4 +42,4 @@ max time: 20  #time of simulation end
 #note that native python "float" is a 64bit
 floating point accuracy: float #float (np.float32) double (np.float64)
 
-phase space vec: 4
+phase space vec: 10
