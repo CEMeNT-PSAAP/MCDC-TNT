@@ -1,7 +1,18 @@
 # MC/DC-TNT
 **Monte Carlo / Dynamic Code - Toy Neutronics Testbed**
 
-We seek to explore acceleration schemes from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: [MC/DC]()
+We seek to explore acceleration schemes from Python to see if we can implement performance portable and easier to produce code for a Monte Carlo neutron transport code: [MC/DC](https://github.com/CEMeNT-PSAAP/MCDC). MC/DC is the ultimate deliverable this code is just for testing methods of implementation
+
+## Current Kernel Status
+0. Pure Python: working transient
+1. Numba CPU: working transient
+2. PyOPM CPU: working transient
+3. Numba CUDA: working transient
+4. Pykokkos: working transient
+5. PyCUDA: working static* 
+6. PyOpenCL: working static*
+
+*static kernels might fail
 
 ## Methods of Implementation
 We explore three methods to implement our transport functions on:
@@ -11,27 +22,28 @@ We explore three methods to implement our transport functions on:
 
 ## Implemented Physics
 The neutronic physics we target are:
-1. monoenergetic;
-2. multiregion (slab geometry);
+1. mono-energetic;
+2. multi-region (slab geometry);
 3. particles produced from fissions;
 4. surface tracking and track length estimators; and
-5. trainsent modeling
+5. transient modeling
 
-## Quick Set-Up
-For Numba (CPU/GPU) and the Pure Python implementation we can do all this:
-1. From a terminal with conda installed set up a conda enviroment with `conda create -n mcdc_tnt numba matplotlib pyyaml pytest` which will install all package dependecies for the Numba (no pyomp) and Pure Python implementations
+## Quick Setup
+I don't expect anyone to run this but for those who are interested; have at it. Find all my embarsing mistakes! This process will get you the dependancies required for Numba (CPU/GPU) and pure Python. *NOTE:* For Numba CUDA you must have **(a)** a [proper graphics card](https://numba.pydata.org/numba-doc/latest/cuda/overview.html#) and; **(b)** the correct [drivers installed](https://numba.pydata.org/numba-doc/latest/cuda/overview.html#) and in your path. Other than that the process is pretty stright forward:
+1. From a terminal with conda installed set up a conda environment with `conda create -n mcdc_tnt numba matplotlib pyyaml pytest` which will install all package dependencies for the Numba (no pyomp) and Pure Python implementations
 2. run `conda activate mcdc_tnt`
 3. Clone this github 
 4. Run `pip install --user -e .` in project directory to install mcdc_tnt as a local package.
 5. Run `python run.py -i tc_1.yaml` for a numba threading 
+6. To change to GPU or pure Python appened the run command with `-t nb_gpu` or `-t pp` respectively
 
-## More complicated Installation
-Unfortunatly some of these packages are not only complicated to build but also conflicting meaning the conda enviroment manager is required to be able to switch back and forth. Note that these builds all have there own required 
+## More complicated Installations
+Warning: *Here be dragons!* Unfortunately some of these packages are not only complicated to build but also conflicting meaning the conda environment manager is required to be able to switch back and forth. Note that these builds all have there own required dependencies and potentialy there own bugs that might be exposed on your particular system with your particular drivers.
 
 ### Installation of PyKokkos
-This is subject to change and should be compared to the PyKokkos build instructions but this is what it looked like for me. Cation is reqired when using various versions of CUDA, gcc, and cmake. While most machines should be able to operate with the OpenMP backend currently on the Lassen Machine can get the CUDA version. To switch to the OpenMP only version change  `-DENABLE_CUDA` from `ON` to `OFF.
+This is subject to change and should be compared to the PyKokkos build instructions but this is what it looked like for me. Cation is reqired when using various versions of CUDA (10.2), gcc (8 or 9), and cmake (16). If you don't have acess to a machine that has a `module` system then check out [update-alternatives](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) to switch things that cannot be installed via conda (gcc). While most machines should be able to operate with the OpenMP backend, I have gotten the Lassen Machine to install the CUDA version. If you don't want to touch the more difficult CUDA instiliation then switch to the OpenMP only version change  `-DENABLE_CUDA` from `ON` to `OFF`.
 
-1. `git clone` [`pykokkos-base`](https://github.com/kokkos/pykokkos-base) and the develop granch of [`pykokkos`](github.com/kokkos/pykokkos). To do this in the pykokkos directory run `git fetch` then `git checkout develop`
+1. `git clone` [`pykokkos-base`](https://github.com/kokkos/pykokkos-base) and the develop branch of [`pykokkos`](github.com/kokkos/pykokkos). To do this in the pykokkos directory run `git fetch` then `git checkout develop`
 2. Prep conda environment by snagging requirements listed in requirements.txt from pykokkos-base and pykokkos. (1. `conda create -n pyk` 2. `conda activate pyk` 3. in pyk-base directory run `conda install --file requirments.txt` 4. in pykokkos directory run `conda install --file requirments.txt`) *ensure that cmake is of version 18 or higher and that gcc/g++ versions are at least 9*
 3. Install Pykokkos-base for both OpenMP, and CUDA implementations by running (OpenMP much quicker and seems to have less issues, if that's all you need switch `-DENABLE_CUDA=OFF`):
 `python setup.py install -- -DCMAKE_CXX_COMPILER=g++ -DENABLE_LAYOUTS=ON -DENABLE_MEMORY_TRAITS=OFF -DENABLE_VIEW_RANKS=3 -DENABLE_CUDA=ON -DENABLE_THREADS=OFF -DENABLE_OPENMP=ON -G "Unix Makefiles" -- -j 4` *this will take upwards of 2 hours to build and will consume a considerable ammount of RAM*
@@ -40,17 +52,17 @@ This is subject to change and should be compared to the PyKokkos build instructi
 
 ### Installation of PyOpenMP
 This process was described in a [paper](https://ieeexplore.ieee.org/document/9658236) that the larger prgoraming framework was described in
-1. Make a new conda enviroment seperate from the normal one in which you have installed the current release of Numba
+1. Make a new conda environment seperate from the normal one in which you have installed the current release of Numba
 2. Install all dependinces and packages with `conda install numba -c drtodd13 -c conda-forge --override-channels`
 3. Install other MCDC-TNT requirements (pyyaml, matplotlib)
 
 ### Installation of PyCUDA
 1. Follow [PyCUDA documentation](https://wiki.tiker.net/PyCuda/Installation/Linux/)
-2. Install other MCDC-TNT requirements (pyyaml, matplotlib)
+2. Install other MCDC-TNT requirements (pyyaml, matplotlib, numba) (only the advance function is implemented via this method for hcgls)
 
 ### Installation of PyOpenCL
 1. Follow [PyOpenCL documentation](https://documen.tician.de/pyopencl/misc.html)
-2. Install other MCDC-TNT requirements (pyyaml, matplotlib)
+2. Install other MCDC-TNT requirements (pyyaml, matplotlib, numba)
 
 
 ## Interface
