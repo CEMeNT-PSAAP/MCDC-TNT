@@ -29,18 +29,19 @@ The neutronic physics we target are:
 5. transient modeling
 
 ## Quick Setup
-I don't expect anyone to run this but for those who are interested! For Numba (CPU/GPU) and the Pure Python implementation we can do all this:
+I don't expect anyone to run this but for those who are interested; have at it. Find all my embarsing mistakes! This process will get you the dependancies required for Numba (CPU/GPU) and pure Python. *NOTE:* For Numba CUDA you must have **(a)** a [proper graphics card](https://numba.pydata.org/numba-doc/latest/cuda/overview.html#) and; **(b)** the correct [drivers installed](https://numba.pydata.org/numba-doc/latest/cuda/overview.html#) and in your path. Other than that the process is pretty stright forward:
 1. From a terminal with conda installed set up a conda environment with `conda create -n mcdc_tnt numba matplotlib pyyaml pytest` which will install all package dependencies for the Numba (no pyomp) and Pure Python implementations
 2. run `conda activate mcdc_tnt`
 3. Clone this github 
 4. Run `pip install --user -e .` in project directory to install mcdc_tnt as a local package.
 5. Run `python run.py -i tc_1.yaml` for a numba threading 
+6. To change to GPU or pure Python appened the run command with `-t nb_gpu` or `-t pp` respectively
 
-## More complicated Installation
-Warning: *Here be dragons!* Unfortunately some of these packages are not only complicated to build but also conflicting meaning the conda environment manager is required to be able to switch back and forth. Note that these builds all have there own required dependencies
+## More complicated Installations
+Warning: *Here be dragons!* Unfortunately some of these packages are not only complicated to build but also conflicting meaning the conda environment manager is required to be able to switch back and forth. Note that these builds all have there own required dependencies and potentialy there own bugs that might be exposed on your particular system with your particular drivers.
 
 ### Installation of PyKokkos
-This is subject to change and should be compared to the PyKokkos build instructions but this is what it looked like for me. Cation is reqired when using various versions of CUDA, gcc, and cmake. If you don't have acess to a machine that has a module system then check out [update-alternatives](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) While most machines should be able to operate with the OpenMP backend currently on the Lassen Machine can get the CUDA version. To switch to the OpenMP only version change  `-DENABLE_CUDA` from `ON` to `OFF`.
+This is subject to change and should be compared to the PyKokkos build instructions but this is what it looked like for me. Cation is reqired when using various versions of CUDA (10.2), gcc (8 or 9), and cmake (16). If you don't have acess to a machine that has a `module` system then check out [update-alternatives](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) to switch things that cannot be installed via conda (gcc). While most machines should be able to operate with the OpenMP backend, I have gotten the Lassen Machine to install the CUDA version. If you don't want to touch the more difficult CUDA instiliation then switch to the OpenMP only version change  `-DENABLE_CUDA` from `ON` to `OFF`.
 
 1. `git clone` [`pykokkos-base`](https://github.com/kokkos/pykokkos-base) and the develop branch of [`pykokkos`](github.com/kokkos/pykokkos). To do this in the pykokkos directory run `git fetch` then `git checkout develop`
 2. Prep conda environment by snagging requirements listed in requirements.txt from pykokkos-base and pykokkos. (1. `conda create -n pyk` 2. `conda activate pyk` 3. in pyk-base directory run `conda install --file requirments.txt` 4. in pykokkos directory run `conda install --file requirments.txt`) *ensure that cmake is of version 18 or higher and that gcc/g++ versions are at least 9*
@@ -57,11 +58,11 @@ This process was described in a [paper](https://ieeexplore.ieee.org/document/965
 
 ### Installation of PyCUDA
 1. Follow [PyCUDA documentation](https://wiki.tiker.net/PyCuda/Installation/Linux/)
-2. Install other MCDC-TNT requirements (pyyaml, matplotlib)
+2. Install other MCDC-TNT requirements (pyyaml, matplotlib, numba) (only the advance function is implemented via this method for hcgls)
 
 ### Installation of PyOpenCL
 1. Follow [PyOpenCL documentation](https://documen.tician.de/pyopencl/misc.html)
-2. Install other MCDC-TNT requirements (pyyaml, matplotlib)
+2. Install other MCDC-TNT requirements (pyyaml, matplotlib, numba)
 
 
 ## Interface
