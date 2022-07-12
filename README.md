@@ -1,7 +1,17 @@
 # MC/DC-TNT
 **Monte Carlo / Dynamic Code - Toy Neutronics Testbed**
 
-We seek to explore acceleration schemes from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: [MC/DC]()
+We seek to explore acceleration schemes from Python to see if we can implement performance portable and esier to produce code for a Monte Carlo neutron transport code: [MC/DC](https://github.com/CEMeNT-PSAAP/MCDC). MC/DC is the ultimte deliverable this code is just for testing methods of implementation
+
+## Current Kernel Status
+0. Pure Python: working transient
+1. Numba CPU: working transient
+2. PyOPM CPU: working transient
+3. Numba CUDA: working transient
+4. Pykokkos: working transient
+5. PyCUDA: working static* 
+6. PyOpenCL: working static*
+*static kernels might fail
 
 ## Methods of Implementation
 We explore three methods to implement our transport functions on:
@@ -18,7 +28,7 @@ The neutronic physics we target are:
 5. trainsent modeling
 
 ## Quick Set-Up
-For Numba (CPU/GPU) and the Pure Python implementation we can do all this:
+I don't expect anyone to run this but for thoes who are interested! For Numba (CPU/GPU) and the Pure Python implementation we can do all this:
 1. From a terminal with conda installed set up a conda enviroment with `conda create -n mcdc_tnt numba matplotlib pyyaml pytest` which will install all package dependecies for the Numba (no pyomp) and Pure Python implementations
 2. run `conda activate mcdc_tnt`
 3. Clone this github 
@@ -26,7 +36,7 @@ For Numba (CPU/GPU) and the Pure Python implementation we can do all this:
 5. Run `python run.py -i tc_1.yaml` for a numba threading 
 
 ## More complicated Installation
-Unfortunatly some of these packages are not only complicated to build but also conflicting meaning the conda enviroment manager is required to be able to switch back and forth. Note that these builds all have there own required 
+Warning: *Here be dragons!* Unfortunatly some of these packages are not only complicated to build but also conflicting meaning the conda enviroment manager is required to be able to switch back and forth. Note that these builds all have there own required dependianices
 
 ### Installation of PyKokkos
 This is subject to change and should be compared to the PyKokkos build instructions but this is what it looked like for me. Cation is reqired when using various versions of CUDA, gcc, and cmake. While most machines should be able to operate with the OpenMP backend currently on the Lassen Machine can get the CUDA version. To switch to the OpenMP only version change  `-DENABLE_CUDA` from `ON` to `OFF.

@@ -41,7 +41,7 @@ def Advance(p_pos_x, p_pos_y, p_pos_z, p_mesh_cell, dx, dt, p_dir_y, p_dir_z, p_
     d_mesh_total_xsec = cuda.to_device(mesh_total_xsec)
     
     d_mesh_dist_traveled = cuda.to_device(dist)
-    d_mesh_dist_traveled_squared = cuda.to_device(dist_sq)
+    d_mesh_dist_traveled_squared = cuda.to_device(mesh_dist_traveled_squared)
     
     threadsperblock = 32
     blockspergrid = (num_part + (threadsperblock - 1)) // threadsperblock
