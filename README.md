@@ -11,6 +11,7 @@ We seek to explore acceleration schemes from Python to see if we can implement p
 4. Pykokkos: working transient
 5. PyCUDA: working static* 
 6. PyOpenCL: working static*
+
 *static kernels might fail
 
 ## Methods of Implementation
